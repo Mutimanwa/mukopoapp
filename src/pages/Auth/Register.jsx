@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Building2, Lock, Eye } from 'lucide-react';
-import Input from '../components/UI/Input';
+import Input from '../../components/UI/Input';
 
 export default function Register() {
   const navigate = useNavigate();

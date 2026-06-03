@@ -1,5 +1,5 @@
 import { Mail, Lock, Eye } from 'lucide-react';
-import Input from '../components/UI/Input';
+import Input from '../../components/UI/Input';
 
 export default function Login() {
   return (

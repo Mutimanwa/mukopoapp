@@ -1,71 +1,109 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Receipt, BarChart3, Settings, Plus, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { 
+  LayoutDashboard, FileText, PlusCircle, FolderOpen, CreditCard, 
+  CheckSquare, Users, BarChart3, ShieldAlert, Settings, 
+  History, Landmark, Layers, ShieldCheck, LogOut
+} from 'lucide-react';
 
 export default function Sidebar() {
-  // Liste des liens de navigation pour éviter la répétition de code
-  const menuItems = [
-    { name: 'Tableau de bord', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Mes Dépenses', path: '/depenses', icon: Receipt },
-    { name: 'Rapports', path: '/rapports', icon: BarChart3 },
-    { name: 'Paramètres', path: '/parametres', icon: Settings },
-  ];
+  const { user, switchRole } = useAuth();
+
+  // Définition des menus par rôle selon le cahier des charges
+  const menus = {
+    employee: [
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/mes-notes', label: 'Mes Notes de Frais', icon: FileText },
+      { to: '/nouvelle-note', label: 'Nouvelle Note', icon: PlusCircle },
+      { to: '/mes-justificatifs', label: 'Mes Justificatifs', icon: FolderOpen },
+      { to: '/mes-remboursements', label: 'Mes Remboursements', icon: CreditCard },
+      { to: '/profil', label: 'Mon Profil', icon: Settings },
+    ],
+    manager: [
+      { to: '/', label: 'Dashboard Manager', icon: LayoutDashboard },
+      { to: '/validation/attente', label: 'Notes à Valider', icon: CheckSquare },
+      { to: '/validation/historique', label: 'Historique Validations', icon: History },
+      { to: '/equipe/collaborateurs', label: 'Mes Collaborateurs', icon: Users },
+      { to: '/equipe/rapports', label: 'Rapport d\'Équipe', icon: BarChart3 },
+    ],
+    finance: [
+      { to: '/', label: 'Dashboard Finance', icon: LayoutDashboard },
+      { to: '/finance/traiter', label: 'Remboursements à Traiter', icon: Landmark },
+      { to: '/finance/historique', label: 'Historique Paiements', icon: History },
+      { to: '/finance/controle', label: 'Contrôle des Notes', icon: ShieldCheck },
+      { to: '/finance/rapports', label: 'Rapports Financiers', icon: BarChart3 },
+    ],
+    admin: [
+      { to: '/', label: 'Dashboard Admin', icon: LayoutDashboard },
+      { to: '/admin/utilisateurs', label: 'Gestion Utilisateurs', icon: Users },
+      { to: '/admin/organisation', label: 'Structure Org', icon: Layers },
+      { to: '/admin/parametres', label: 'Workflows & Rôles', icon: Settings },
+      { to: '/admin/audit', label: 'Journal d\'Audit', icon: ShieldAlert },
+    ]
+  };
+
+  const currentMenu = menus[user?.role] || [];
 
   return (
-    <aside className="w-64 h-screen bg-[#111C2E] border-r border-slate-800/60 fixed top-0 left-0 flex flex-col justify-between p-6 z-30">
-      
-      {/* Haut de la Sidebar : Logo & Profil */}
+    <div className="w-64 min-h-screen bg-[#111C2E] border-r border-slate-800/60 flex flex-col justify-between p-4 font-sans">
       <div className="space-y-8">
         {/* Branding */}
-        <div>
-          <h1 className="text-xl font-black text-[#FF6B2C] tracking-wider uppercase font-sans">
-            MUKOPOAPP
-          </h1>
-          <p className="text-[10px] font-mono text-slate-500 mt-1">Safi Kibasomba</p>
+        <div className="px-3 py-2">
+          <h1 className="text-xl font-black text-muko-orange tracking-wider uppercase">MUKOPOAPP</h1>
+          <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest block mt-0.5">Enterprise Suite</span>
         </div>
 
-        {/* Liens du Menu */}
-        <nav className="space-y-1.5">
-          {menuItems.map((item) => {
+        {/* Liens de Navigation */}
+        <nav className="space-y-1">
+          {currentMenu.map((item, idx) => {
             const Icon = item.icon;
             return (
               <NavLink
-                key={item.path}
-                to={item.path}
+                key={idx}
+                to={item.to}
+                end={item.to === '/'}
                 className={({ isActive }) => `
-                  flex items-center gap-3 px-4 py-3  text-sm font-medium transition-all duration-200
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200
                   ${isActive 
-                    ? 'bg-[#0B131F] text-white border-l-3 border-[#FF6B2C] shadow-inner shadow-black/20' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#0B131F]/40'}
+                    ? 'bg-muko-orange text-white shadow-lg shadow-muko-orange/15' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#1A263B]/40'}
                 `}
               >
-                <Icon size={18} className="shrink-0" />
-                {item.name}
+                <Icon size={16} />
+                {item.label}
               </NavLink>
             );
           })}
         </nav>
       </div>
 
-      {/* Bas de la Sidebar : Actions */}
-      <div className="space-y-4">
-        {/* Bouton Nouvelle Dépense Orange */}
-        <button className="w-full bg-[#FF6B2C] hover:bg-opacity-90 text-white text-xs font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98]">
-          <Plus size={16} />
-          Nouvelle Dépense
-        </button>
+      {/* SÉLECTEUR DE RÔLE (Pour les tests de développement) */}
+      <div className="space-y-4 pt-4 border-t border-slate-800/60">
+        <div className="bg-[#0B131F] rounded-xl p-3 border border-slate-800/60">
+          <label className="text-[9px] font-mono text-slate-500 uppercase block mb-1.5">Simuler un Rôle :</label>
+          <select 
+            value={user.role} 
+            onChange={(e) => switchRole(e.target.value)}
+            className="w-full bg-[#1A263B] text-white text-xs rounded-lg p-2 border border-slate-700 outline-none font-sans font-medium cursor-pointer"
+          >
+            <option value="employee">👨‍💻 Employé</option>
+            <option value="manager">💼 Manager</option>
+            <option value="finance">🏦 Comptable / Finance</option>
+            <option value="admin">⚙️ Administrateur</option>
+          </select>
+        </div>
 
-        <hr className="border-slate-800/60" />
-
-        {/* Bouton Déconnexion */}
-        <NavLink 
-          to="/connexion" 
-          className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-400 hover:text-red-400 rounded-xl hover:bg-red-500/5 transition-colors"
-        >
-          <LogOut size={18} />
-          Déconnexion
-        </NavLink>
+        {/* Infos utilisateur connecté */}
+        <div className="flex items-center justify-between px-2 text-xs">
+          <div className="truncate pr-2">
+            <p className="text-white font-semibold truncate">{user.name}</p>
+            <p className="text-[10px] text-slate-500 font-mono capitalize">{user.role}</p>
+          </div>
+          <button className="text-slate-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="Déconnexion">
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
-
-    </aside>
+    </div>
   );
 }
