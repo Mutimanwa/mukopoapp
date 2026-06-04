@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar() {
-  const { user, switchRole } = useAuth();
+  const { user, switchRole, logout } = useAuth();
 
   // Définition des menus par rôle selon le cahier des charges
   const menus = {
@@ -99,7 +99,7 @@ export default function Sidebar() {
             <p className="text-white font-semibold truncate">{user.name}</p>
             <p className="text-[10px] text-slate-500 font-mono capitalize">{user.role}</p>
           </div>
-          <button className="text-slate-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="Déconnexion">
+          <button onClick={logout} className="text-slate-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="Déconnexion">
             <LogOut size={16} />
           </button>
         </div>

@@ -11,11 +11,23 @@ export function AuthProvider({ children }) {
   });
 
   const switchRole = (role) => {
-    setUser(prev => ({ ...prev, role }));
+    setUser(prev => prev ? { ...prev, role } : {
+      name: role === 'admin' ? 'Safi Kibasomba' : role === 'manager' ? 'Alain Ndikumana' : role === 'finance' ? 'Clément Nkurunziza' : 'Safi Kibasomba',
+      email: `${role}@mukopo.com`,
+      role
+    });
+  };
+
+  const login = (role) => {
+    setUser({
+      name: role === 'admin' ? 'Safi Kibasomba' : role === 'manager' ? 'Alain Ndikumana' : role === 'finance' ? 'Clément Nkurunziza' : 'Safi Kibasomba',
+      email: `${role}@mukopo.com`,
+      role
+    });
   };
 
   return (
-    <AuthContext.Provider value={{ user, switchRole, logout: () => setUser(null) }}>
+    <AuthContext.Provider value={{ user, switchRole, login, logout: () => setUser(null) }}>
       {children}
     </AuthContext.Provider>
   );

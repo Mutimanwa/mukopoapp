@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 // Layout global
 import Layout from './components/Layout/Layout';
 
+// Protection de routes
+import ProtectedRoute from './components/ProtectedRoute';
+
 // Pages Auth
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
@@ -21,7 +24,7 @@ import PendingExpenses from './pages/Manager/PendingExpenses';
 import ValidationHistory from './pages/Manager/ValidationHistory';
 import TeamList from './pages/Manager/TeamList';
 import TeamMemberDetail from './pages/Manager/TeamMemberDetail';
-import ManagerDashboard from './pages/Manager/ManagerDashbaord';
+import ManagerDashboard from './pages/Manager/ManagerDashboard'; // Correction du nom de fichier
 import ExpenseReports from './pages/Finance/ExpenseReports';
 import AuditingExpenses from './pages/Finance/AuditingExpenses';
 import PayoutHistory from './pages/Finance/PayoutHistory';
@@ -34,6 +37,10 @@ import UserForm from './pages/Admin/UserForm';
 import OrgStructure from './pages/Admin/OrgStructure';
 import WorkflowSettings from './pages/Admin/WorkflowSettings';
 import AuditLogs from './pages/Admin/AuditLogs';
+
+// Imports des pages complémentaires
+import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 
 // Nous allons créer un composant de routage pour le tableau de bord selon le rôle
 function SwitchDashboard() {
@@ -61,41 +68,55 @@ export default function App() {
           <Route path="/connexion" element={<Login />} />
           <Route path="/inscription" element={<Register />} />
 
-          {/* Application protégée par le Layout applicatif */}
-          <Route path="/" element={<Layout />}>
-            {/* Le point d'entrée s'adapte dynamiquement selon le rôle simulé */}
-            <Route index element={<SwitchDashboard />} />
+          {/* Application protégée par l'authentification globale */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Layout />}>
+              {/* Le point d'entrée s'adapte dynamiquement selon le rôle simulé */}
+              <Route index element={<SwitchDashboard />} />
 
-            {/* Routes Employé */}
-            <Route path="mes-notes" element={<Expenses />} />
-            <Route path="nouvelle-note" element={<NewExpense />} />
-            <Route path="note-detail/:id" element={<ExpenseDetail />} />
-            <Route path="modifier-note/:id" element={<EditExpense />} />
-            <Route path="mes-justificatifs" element={<ReceiptsGallery />} />
-            <Route path="mes-remboursements" element={<RefundDetail />} />
+              {/* Page commune de profil */}
+              <Route path="profil" element={<Settings />} />
 
-            {/* Routes Manager / Validation */}
-            {/* Routes Manager / Validation */}
-            <Route path="validation/attente" element={<PendingExpenses />} />
-            <Route path="validation/detail/:id" element={<ApprovalDetail />} />
-            <Route path="validation/historique" element={<ValidationHistory />} />
-            <Route path="equipe/collaborateurs" element={<TeamList />} />
-            <Route path="equipe/collaborateur/:id" element={<TeamMemberDetail />} />
+              {/* Routes Employé */}
+              <Route element={<ProtectedRoute allowedRoles={['employee']} />}>
+                <Route path="mes-notes" element={<Expenses />} />
+                <Route path="nouvelle-note" element={<NewExpense />} />
+                <Route path="note-detail/:id" element={<ExpenseDetail />} />
+                <Route path="modifier-note/:id" element={<EditExpense />} />
+                <Route path="mes-justificatifs" element={<ReceiptsGallery />} />
+                <Route path="mes-remboursements" element={<RefundDetail />} />
+              </Route>
 
-            {/* Routes Comptables / Financières */}
-            <Route path="finance/traiter" element={<PendingPayouts />} />
-            <Route path="finance/payer/:id" element={<PayoutDetail />} />
-            <Route path="finance/historique" element={<PayoutHistory />} />
-            <Route path="finance/controle" element={<AuditingExpenses />} />
-            <Route path="finance/rapports" element={<ExpenseReports />} />
+              {/* Routes Manager / Validation */}
+              <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
+                <Route path="validation/attente" element={<PendingExpenses />} />
+                <Route path="validation/detail/:id" element={<ApprovalDetail />} />
+                <Route path="validation/historique" element={<ValidationHistory />} />
+                <Route path="equipe/collaborateurs" element={<TeamList />} />
+                <Route path="equipe/collaborateur/:id" element={<TeamMemberDetail />} />
+                <Route path="equipe/rapports" element={<Reports />} />
+              </Route>
 
-            {/* Routes d'Administration */}
-            <Route path="admin/utilisateurs" element={<UserManagement />} />
-            <Route path="admin/utilisateurs/creer" element={<UserForm />} />
-            <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
-            <Route path="admin/organisation" element={<OrgStructure />} />
-            <Route path="admin/parametres" element={<WorkflowSettings />} />
-            <Route path="admin/audit" element={<AuditLogs />} /></Route>
+              {/* Routes Comptables / Financières */}
+              <Route element={<ProtectedRoute allowedRoles={['finance']} />}>
+                <Route path="finance/traiter" element={<PendingPayouts />} />
+                <Route path="finance/payer/:id" element={<PayoutDetail />} />
+                <Route path="finance/historique" element={<PayoutHistory />} />
+                <Route path="finance/controle" element={<AuditingExpenses />} />
+                <Route path="finance/rapports" element={<ExpenseReports />} />
+              </Route>
+
+              {/* Routes d'Administration */}
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route path="admin/utilisateurs" element={<UserManagement />} />
+                <Route path="admin/utilisateurs/creer" element={<UserForm />} />
+                <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
+                <Route path="admin/organisation" element={<OrgStructure />} />
+                <Route path="admin/parametres" element={<WorkflowSettings />} />
+                <Route path="admin/audit" element={<AuditLogs />} />
+              </Route>
+            </Route>
+          </Route>
         </Routes>
       </BrowserRouter>
     </AuthProvider>
