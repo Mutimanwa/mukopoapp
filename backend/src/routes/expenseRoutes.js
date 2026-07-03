@@ -1,5 +1,5 @@
 import express from 'express';
-import { createExpense, getMyExpenses, getExpenses, updateExpenseStatus } from '../controllers/expenseController.js';
+import { createExpense, getMyExpenses, getExpenses, updateExpenseStatus, updateExpense, deleteExpense } from '../controllers/expenseController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { authorize } from '../middlewares/roleMiddleware.js';
 
@@ -14,5 +14,9 @@ router.route('/myexpenses')
 
 router.route('/:id/status')
     .put(protect, authorize('Admin', 'Finance', 'Manager'), updateExpenseStatus);
+
+router.route('/:id')
+    .put(protect, updateExpense)
+    .delete(protect, deleteExpense);
 
 export default router;

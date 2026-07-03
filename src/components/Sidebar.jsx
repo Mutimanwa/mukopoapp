@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, FileText, PlusCircle, FolderOpen, CreditCard, 
-  CheckSquare, Users, BarChart3, ShieldAlert, Settings, 
+import {
+  LayoutDashboard, FileText, PlusCircle, FolderOpen, CreditCard,
+  CheckSquare, Users, BarChart3, ShieldAlert, Settings,
   History, Landmark, Layers, ShieldCheck, LogOut
 } from 'lucide-react';
 
 export default function Sidebar() {
-  const { user, switchRole, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   // Définition des menus par rôle selon le cahier des charges
   const menus = {
@@ -64,8 +64,8 @@ export default function Sidebar() {
                 end={item.to === '/'}
                 className={({ isActive }) => `
                   flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200
-                  ${isActive 
-                    ? 'bg-muko-orange text-white shadow-lg shadow-muko-orange/15' 
+                  ${isActive
+                    ? 'bg-muko-orange text-white shadow-lg shadow-muko-orange/15'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-[#1A263B]/40'}
                 `}
               >
@@ -78,27 +78,9 @@ export default function Sidebar() {
       </div>
 
       {/* SÉLECTEUR DE RÔLE (Pour les tests de développement) */}
-      <div className="space-y-4 pt-4 border-t border-slate-800/60">
-        <div className="bg-[#0B131F] rounded-xl p-3 border border-slate-800/60">
-          <label className="text-[9px] font-mono text-slate-500 uppercase block mb-1.5">Simuler un Rôle :</label>
-          <select 
-            value={user.role} 
-            onChange={(e) => switchRole(e.target.value)}
-            className="w-full bg-[#1A263B] text-white text-xs rounded-lg p-2 border border-slate-700 outline-none font-sans font-medium cursor-pointer"
-          >
-            <option value="employee">👨‍💻 Employé</option>
-            <option value="manager">💼 Manager</option>
-            <option value="finance">🏦 Comptable / Finance</option>
-            <option value="admin">⚙️ Administrateur</option>
-          </select>
-        </div>
-
+      <div className="pt-4 border-t border-slate-800/60">
         {/* Infos utilisateur connecté */}
-        <div className="flex items-center justify-between px-2 text-xs">
-          <div className="truncate pr-2">
-            <p className="text-white font-semibold truncate">{user.name}</p>
-            <p className="text-[10px] text-slate-500 font-mono capitalize">{user.role}</p>
-          </div>
+        <div className="flex items-center justify-between px-2 text-xs bg-[#0B131F] rounded-xl p-3 border border-slate-800/60">
           <button onClick={logout} className="text-slate-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="Déconnexion">
             <LogOut size={16} />
           </button>

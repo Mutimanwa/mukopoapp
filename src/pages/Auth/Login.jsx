@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Input from '../../components/UI/Input';
@@ -6,15 +6,31 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [email, setEmail] = useState('safi.k@mukopo.com');
-  const [role, setRole] = useState('employee');
+  const { login, user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [errorLine, setErrorLine] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    login(role);
-    navigate('/');
+    setIsLoading(true);
+    setErrorLine('');
+
+    const res = await login(email, password);
+    if (res.success) {
+      navigate('/');
+    } else {
+      setErrorLine(res.message || 'Erreur de connexion');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,7 +88,8 @@ export default function Login() {
                 <Input
                   label="Mot de passe"
                   type={showPassword ? "text" : "password"}
-                  defaultValue="12345678"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   icon={Lock}
                   required
@@ -86,22 +103,11 @@ export default function Login() {
                 </button>
               </div>
 
-              {/* Rôle pour la simulation */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                  Rôle de connexion (Simulation)
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-[#1A263B] text-slate-200 text-xs rounded-xl p-3.5 border border-slate-800 outline-none focus:border-muko-orange/50 cursor-pointer"
-                >
-                  <option value="employee">👨‍💻 Employé</option>
-                  <option value="manager">💼 Manager</option>
-                  <option value="finance">🏦 Comptable / Finance</option>
-                  <option value="admin">⚙️ Administrateur</option>
-                </select>
-              </div>
+              {errorLine && (
+                <div className="text-red-400 text-xs mt-2 bg-red-400/10 p-2 rounded-lg border border-red-400/20">
+                  {errorLine}
+                </div>
+              )}
 
               {/* Se souvenir de moi */}
               <div className="flex items-center gap-2 pt-1">
@@ -119,9 +125,10 @@ export default function Login() {
               {/* Bouton de connexion */}
               <button
                 type="submit"
-                className="w-full bg-[#FF6B2C] hover:bg-opacity-90 text-white font-bold py-3.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-4 shadow-lg shadow-[#FF6B2C]/10 active:scale-[0.99] cursor-pointer"
+                disabled={isLoading}
+                className="w-full bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-4 shadow-lg shadow-[#FF6B2C]/10 active:scale-[0.99] cursor-pointer"
               >
-                Se connecter →
+                {isLoading ? 'Connexion en cours...' : 'Se connecter →'}
               </button>
             </form>
           </div>

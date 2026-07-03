@@ -9,11 +9,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages Auth
 import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
 
 // Pages Rôles (On crée des points d'entrées intelligents)
-import Dashboard from './pages/Dashboard'; // Dashboard Employé
-import Expenses from './pages/Expenses';   // Mes Dépenses / Notes
+import Dashboard from './pages/Employe/Dashboard';
+import Expenses from './pages/Employe/Expenses';   // Mes Dépenses / Notes
 import NewExpense from './pages/Employe/NewExpense';
 import ExpenseDetail from './pages/Employe/ExpenseDetail';
 import EditExpense from './pages/Employe/EditExpense';
@@ -24,7 +23,7 @@ import PendingExpenses from './pages/Manager/PendingExpenses';
 import ValidationHistory from './pages/Manager/ValidationHistory';
 import TeamList from './pages/Manager/TeamList';
 import TeamMemberDetail from './pages/Manager/TeamMemberDetail';
-import ManagerDashboard from './pages/Manager/ManagerDashboard'; // Correction du nom de fichier
+import ManagerDashboard from './pages/Manager/ManagerDashboard'; 
 import ExpenseReports from './pages/Finance/ExpenseReports';
 import AuditingExpenses from './pages/Finance/AuditingExpenses';
 import PayoutHistory from './pages/Finance/PayoutHistory';
@@ -66,7 +65,6 @@ export default function App() {
         <Routes>
           {/* Routes d'accès authentification autonomes */}
           <Route path="/connexion" element={<Login />} />
-          <Route path="/inscription" element={<Register />} />
 
           {/* Application protégée par l'authentification globale */}
           <Route element={<ProtectedRoute />}>

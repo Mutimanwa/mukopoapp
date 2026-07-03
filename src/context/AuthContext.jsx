@@ -1,34 +1,60 @@
-import  { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import apiClient from '../services/api';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  // Rôles disponibles : 'employee', 'manager', 'finance', 'admin'
-  const [user, setUser] = useState({
-    name: 'Safi Kibasomba',
-    email: 'safi.k@mukopo.com',
-    role: 'employee' 
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const switchRole = (role) => {
-    setUser(prev => prev ? { ...prev, role } : {
-      name: role === 'admin' ? 'Safi Kibasomba' : role === 'manager' ? 'Alain Ndikumana' : role === 'finance' ? 'Clément Nkurunziza' : 'Safi Kibasomba',
-      email: `${role}@mukopo.com`,
-      role
-    });
+  // Vérifier le token au chargement
+  useEffect(() => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      setUser(JSON.parse(userInfo));
+    }
+    setLoading(false);
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const { data } = await apiClient.post('/auth/login', { email, password });
+
+      // Sauvegarder dans le localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userInfo', JSON.stringify({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role.toLowerCase() // Normaliser le rôle pour correspondre aux routes React
+      }));
+
+      setUser({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role.toLowerCase()
+      });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response && error.response.data.message
+          ? error.response.data.message
+          : error.message
+      };
+    }
   };
 
-  const login = (role) => {
-    setUser({
-      name: role === 'admin' ? 'Safi Kibasomba' : role === 'manager' ? 'Alain Ndikumana' : role === 'finance' ? 'Clément Nkurunziza' : 'Safi Kibasomba',
-      email: `${role}@mukopo.com`,
-      role
-    });
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, switchRole, login, logout: () => setUser(null) }}>
-      {children}
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

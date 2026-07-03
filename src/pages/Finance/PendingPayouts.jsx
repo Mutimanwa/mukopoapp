@@ -1,24 +1,61 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Search, Landmark, Clock, FileText, CheckCircle } from 'lucide-react';
-
-const initialPayouts = [
-  { id: "REM-001", employee: "Safi Kibasomba", items: "3 notes de frais", total: "1450.00", approvedBy: "Manager Technique", date: "Hier" },
-  { id: "REM-002", employee: "Alain Ndikumana", items: "1 note de frais", total: "120.00", approvedBy: "Manager Réseau", date: "Le 02/06" },
-  { id: "REM-003", employee: "Clément Nkurunziza", items: "2 notes de frais", total: "410.00", approvedBy: "Directeur RE-START", date: "Le 29/05" }
-];
+import { CreditCard, Search, Landmark, Clock, FileText, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
+import apiClient from '../../services/api';
 
 export default function PendingPayouts() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredPayouts = initialPayouts.filter(row => {
-    return row.employee.toLowerCase().includes(search.toLowerCase()) || 
-           row.id.toLowerCase().includes(search.toLowerCase()) ||
-           row.approvedBy.toLowerCase().includes(search.toLowerCase());
-  });
+  useEffect(() => {
+    const fetchPayouts = async () => {
+      try {
+        const { data } = await apiClient.get('/expenses');
+        // Garder uniquement celles qui sont Approuvées par le Manager
+        const approved = data.filter(e => e.status === 'Approuvée');
 
-  const totalSum = filteredPayouts.reduce((sum, item) => sum + parseFloat(item.total), 0);
+        // Grouper par collaborateur
+        const grouped = approved.reduce((acc, exp) => {
+          const uId = exp.userId ? exp.userId._id : 'unknown';
+          const uName = exp.userId ? exp.userId.name : 'Inconnu';
+          if (!acc[uId]) {
+            acc[uId] = {
+              _id: uId,
+              employee: uName,
+              itemsCount: 0,
+              total: 0,
+              approvedBy: "Validation Manager"
+            };
+          }
+          acc[uId].itemsCount += 1;
+          acc[uId].total += (exp.amount || 0);
+          return acc;
+        }, {});
+
+        setPayouts(Object.values(grouped));
+      } catch (err) {
+        console.error(err);
+        setError("Impossible de charger les paiements en attente.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPayouts();
+  }, []);
+
+  const filteredPayouts = useMemo(() => {
+    if (!search) return payouts;
+    return payouts.filter(row =>
+      row.employee.toLowerCase().includes(search.toLowerCase()) ||
+      row._id.toLowerCase().includes(search.toLowerCase()) ||
+      row.approvedBy.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [payouts, search]);
+
+  const totalSum = useMemo(() => filteredPayouts.reduce((sum, item) => sum + item.total, 0), [filteredPayouts]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -43,7 +80,7 @@ export default function PendingPayouts() {
         <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-slate-500 font-bold tracking-wider">Ordres de virements en attente</span>
-            <p className="text-xl font-black text-white font-mono">{filteredPayouts.length} virements</p>
+            <p className="text-xl font-black text-white font-mono">{loading ? '...' : filteredPayouts.length} virements</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/15 text-amber-400 flex items-center justify-center">
             <Clock size={18} />
@@ -56,9 +93,9 @@ export default function PendingPayouts() {
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div className="relative w-full md:w-80">
             <Search size={14} className="absolute left-4 top-3.5 text-slate-500" />
-            <input 
-              type="text" 
-              placeholder="Rechercher par bénéficiaire ou ID..." 
+            <input
+              type="text"
+              placeholder="Rechercher par bénéficiaire ou ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-[#1A263B] text-slate-200 text-xs pl-10 pr-4 py-3 rounded-xl border border-slate-800 outline-none focus:border-muko-orange/50 transition-colors"
@@ -80,17 +117,35 @@ export default function PendingPayouts() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-xs text-slate-300">
-              {filteredPayouts.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-slate-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <Loader2 className="animate-spin" size={16} />
+                      Extraction des paiements...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-red-400">
+                    <div className="flex justify-center items-center gap-2">
+                      <AlertTriangle size={16} />
+                      {error}
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredPayouts.length > 0 ? (
                 filteredPayouts.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#0B131F]/30 transition-colors">
-                    <td className="py-4 px-4 font-mono font-bold text-slate-400">{row.id}</td>
+                  <tr key={row._id} className="hover:bg-[#0B131F]/30 transition-colors">
+                    <td className="py-4 px-4 font-mono font-bold text-slate-400">{row._id.substring(row._id.length - 6).toUpperCase()}</td>
                     <td className="py-4 px-4 font-semibold text-white">{row.employee}</td>
-                    <td className="py-4 px-4 text-slate-400">{row.items}</td>
+                    <td className="py-4 px-4 text-slate-400">{row.itemsCount} note{row.itemsCount > 1 ? 's' : ''} de frais</td>
                     <td className="py-4 px-4 text-slate-500 font-medium">✅ {row.approvedBy}</td>
-                    <td className="py-4 px-4 font-mono font-bold text-white text-right">{parseFloat(row.total).toFixed(2)} €</td>
+                    <td className="py-4 px-4 font-mono font-bold text-white text-right">{row.total.toFixed(2)} €</td>
                     <td className="py-4 px-4 text-right">
-                      <button 
-                        onClick={() => navigate(`/finance/payer/${row.id}`)}
+                      <button
+                        onClick={() => navigate(`/finance/payer/${row._id}`)}
                         className="bg-[#1A263B] hover:bg-muko-orange hover:text-white text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-800 transition-all flex items-center gap-1.5 ml-auto cursor-pointer"
                       >
                         <CreditCard size={12} /> Émettre le virement

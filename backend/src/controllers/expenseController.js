@@ -5,7 +5,7 @@ import Expense from '../models/Expense.js';
 // @access  Private
 const createExpense = async (req, res) => {
     try {
-        const { amount, currency, category, date, receiptUrl } = req.body;
+        const { amount, currency, category, date, receiptUrl, description, project } = req.body;
 
         const expense = new Expense({
             userId: req.user._id,
@@ -13,7 +13,9 @@ const createExpense = async (req, res) => {
             currency: currency || 'EUR',
             category,
             date,
-            receiptUrl
+            receiptUrl,
+            description,
+            project
         });
 
         const createdExpense = await expense.save();
@@ -73,4 +75,48 @@ const updateExpenseStatus = async (req, res) => {
     }
 };
 
-export { createExpense, getMyExpenses, getExpenses, updateExpenseStatus };
+// @desc    Update expense fields (by owner while pending)
+// @route   PUT /api/expenses/:id
+// @access  Private
+const updateExpense = async (req, res) => {
+    try {
+        const { amount, currency, category, date, description, project } = req.body;
+        const expense = await Expense.findById(req.params.id);
+
+        if (!expense) return res.status(404).json({ message: 'Dépense non trouvée' });
+        if (expense.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Non autorisé' });
+        }
+
+        expense.amount = amount ?? expense.amount;
+        expense.currency = currency ?? expense.currency;
+        expense.category = category ?? expense.category;
+        expense.date = date ?? expense.date;
+        expense.description = description ?? expense.description;
+        expense.project = project ?? expense.project;
+
+        const updated = await expense.save();
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Delete an expense (by owner)
+// @route   DELETE /api/expenses/:id
+// @access  Private
+const deleteExpense = async (req, res) => {
+    try {
+        const expense = await Expense.findById(req.params.id);
+        if (!expense) return res.status(404).json({ message: 'Dépense non trouvée' });
+        if (expense.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Non autorisé' });
+        }
+        await expense.deleteOne();
+        res.json({ message: 'Dépense supprimée' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export { createExpense, getMyExpenses, getExpenses, updateExpenseStatus, updateExpense, deleteExpense };

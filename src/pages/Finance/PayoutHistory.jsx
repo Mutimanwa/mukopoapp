@@ -1,23 +1,38 @@
-import { useState } from 'react';
-import { Landmark, Search, Download, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
-
-const initialClosedPayouts = [
-  { id: "REM-9011", name: "Bella Inamahoro", date: "24/05/2026", method: "Virement", ref: "TR-890211", total: "320.50" },
-  { id: "REM-8920", name: "Alain Ndikumana", date: "15/05/2026", method: "Virement", ref: "TR-881902", total: "89.00" },
-  { id: "REM-8540", name: "Safi Kibasomba", date: "02/05/2026", method: "Virement", ref: "TR-872391", total: "1450.00" },
-  { id: "REM-8102", name: "Clément Nkurunziza", date: "28/04/2026", method: "Espèces", ref: "CASH-9102", total: "150.00" },
-];
+import { useState, useEffect, useMemo } from 'react';
+import { Landmark, Search, Download, FileText, CheckCircle2, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
+import apiClient from '../../services/api';
 
 export default function PayoutHistory() {
   const [search, setSearch] = useState('');
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredHistory = initialClosedPayouts.filter(row => {
-    return row.name.toLowerCase().includes(search.toLowerCase()) || 
-           row.id.toLowerCase().includes(search.toLowerCase()) ||
-           row.ref.toLowerCase().includes(search.toLowerCase());
-  });
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const { data } = await apiClient.get('/expenses?status=Payé');
+        setHistory(data);
+      } catch (err) {
+        setError("Impossible de charger l'historique.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
-  const totalSum = initialClosedPayouts.reduce((sum, item) => sum + parseFloat(item.total), 0);
+  const filteredHistory = useMemo(() => {
+    if (!search) return history;
+    return history.filter(row =>
+      row.userId?.name.toLowerCase().includes(search.toLowerCase()) ||
+      row._id.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [history, search]);
+
+  const totalSum = useMemo(() => {
+    return filteredHistory.reduce((sum, item) => sum + (item.amount || 0), 0);
+  }, [filteredHistory]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -27,7 +42,7 @@ export default function PayoutHistory() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Historique des décaissements</h1>
           <p className="text-slate-400 text-xs mt-1">Journal complet des remboursements archivés et lettrés en comptabilité.</p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <button className="bg-[#1A263B] border border-slate-800 text-slate-300 hover:text-white text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer">
             <Download size={14} /> Exporter en CSV
@@ -53,7 +68,7 @@ export default function PayoutHistory() {
         <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-slate-500 font-bold tracking-wider">Règlements archivés</span>
-            <p className="text-xl font-black text-white font-mono">{initialClosedPayouts.length} virements</p>
+            <p className="text-xl font-black text-white font-mono">{loading ? '...' : `${filteredHistory.length} virements`}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-[#FF6B2C]/10 border border-[#FF6B2C]/15 text-[#FF6B2C] flex items-center justify-center">
             <Landmark size={18} />
@@ -75,9 +90,9 @@ export default function PayoutHistory() {
       <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-5 space-y-4">
         <div className="relative w-full md:w-80">
           <Search size={14} className="absolute left-4 top-3.5 text-slate-500" />
-          <input 
-            type="text" 
-            placeholder="Rechercher par salarié ou référence..." 
+          <input
+            type="text"
+            placeholder="Rechercher par salarié ou référence..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-[#1A263B] text-slate-200 text-xs pl-10 pr-4 py-3 rounded-xl border border-slate-800 outline-none focus:border-muko-orange/50 transition-colors"
@@ -97,25 +112,29 @@ export default function PayoutHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-xs text-slate-300">
-              {filteredHistory.length > 0 ? (
+              {loading ? (
+                <tr><td colSpan="5" className="text-center py-8 text-slate-500"><Loader2 className="inline-block animate-spin mr-2" />Chargement...</td></tr>
+              ) : error ? (
+                <tr><td colSpan="5" className="text-center py-8 text-red-400"><AlertTriangle className="inline-block mr-2" />{error}</td></tr>
+              ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#0B131F]/30 transition-colors">
-                    <td className="py-4 px-4 font-mono font-bold text-slate-400">{item.id}</td>
-                    <td className="py-4 px-4 font-semibold text-white">{item.name}</td>
-                    <td className="py-4 px-4 text-slate-500 font-mono text-[11px]">{item.date}</td>
+                  <tr key={item._id} className="hover:bg-[#0B131F]/30 transition-colors">
+                    <td className="py-4 px-4 font-mono font-bold text-slate-400">REM-{item._id.slice(-6).toUpperCase()}</td>
+                    <td className="py-4 px-4 font-semibold text-white">{item.userId?.name || 'Inconnu'}</td>
+                    <td className="py-4 px-4 text-slate-500 font-mono text-[11px]">{new Date(item.updatedAt).toLocaleDateString()}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">
                       <div className="flex items-center gap-1.5 py-1">
                         <Landmark size={12} className="text-slate-600 shrink-0" />
-                        <span>{item.method} ({item.ref})</span>
+                        <span>Virement (TR-{item._id.slice(-8).toUpperCase()})</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-right font-bold text-green-400 font-mono">{parseFloat(item.total).toFixed(2)} €</td>
+                    <td className="py-4 px-4 text-right font-bold text-green-400 font-mono">{item.amount.toFixed(2)} {item.currency}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan="5" className="py-8 text-center text-slate-500 font-medium">
-                    Aucun historique de décaissement trouvé.
+                    Aucun historique de décaissement ne correspond à vos critères.
                   </td>
                 </tr>
               )}

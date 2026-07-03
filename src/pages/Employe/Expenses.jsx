@@ -1,33 +1,59 @@
-import { Calendar, Filter, Download, Printer, SlidersHorizontal, UploadCloud, Utensils, Train, Hotel, ShoppingBag, Fuel, Eye, DownloadCloud } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Filter, Download, Printer, SlidersHorizontal, UploadCloud, Utensils, Train, Hotel, ShoppingBag, Fuel, Eye, Loader2, AlertTriangle } from 'lucide-react';
+import apiClient from '../../services/api';
 
-// Données fidèles à ta maquette d'origine "Html → Body (2).jpg"
-const initialExpenses = [
-  { id: 1, date: '12 Oct 2023', merchant: 'Le Petit Bistro', category: 'Restauration', icon: Utensils, amount: '45.00 €', status: 'Payé' },
-  { id: 2, date: '10 Oct 2023', merchant: 'SNCF Voyage', category: 'Transport', icon: Train, amount: '128.50 €', status: 'En attente' },
-  { id: 3, date: '08 Oct 2023', merchant: 'Hôtel Continental', category: 'Hébergement', icon: Hotel, amount: '540.00 €', status: 'Payé' },
-  { id: 4, date: '05 Oct 2023', merchant: 'Amazon Business', category: 'Fournitures', icon: ShoppingBag, amount: '89.99 €', status: 'Rejeté' },
-  { id: 5, date: '02 Oct 2023', merchant: 'TotalEnergies', category: 'Carburant', icon: Fuel, amount: '75.20 €', status: 'Payé' },
-];
+const getCategoryIcon = (category) => {
+  switch (category?.toLowerCase()) {
+    case 'restauration': return Utensils;
+    case 'transport': return Train;
+    case 'hébergement': return Hotel;
+    case 'fournitures': return ShoppingBag;
+    case 'carburant': return Fuel;
+    default: return ShoppingBag;
+  }
+};
 
 export default function Expenses() {
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const { data } = await apiClient.get('/expenses/myexpenses');
+        setExpenses(data);
+      } catch (err) {
+        console.error(err);
+        setError("Erreur de chargement des dépenses.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  // Calcul du total
+  const totalAmount = expenses.reduce((acc, exp) => acc + (exp.amount || 0), 0);
+
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* 1. BLOC TOP : Cartes d'Analyse Complète */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Grande Carte : Total Dépensé (Prend 2 colonnes sur grand écran) */}
         <div className="lg:col-span-2 bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group">
           <div className="space-y-1 z-10">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Total Dépensé (Ce mois)</span>
             <div className="flex items-baseline gap-3">
-              <h2 className="text-4xl font-black text-white font-mono tracking-tight">12,450.00 FB</h2>
+              <h2 className="text-4xl font-black text-white font-mono tracking-tight">{loading ? '...' : `${totalAmount.toLocaleString()} €`}</h2>
               <span className="text-[10px] font-mono bg-red-500/10 text-red-400 px-2 py-0.5 rounded-md border border-red-500/20">
                 +14.2% vs mois dernier
               </span>
             </div>
           </div>
-          
+
           {/* Simulation du graphique en barres en arrière-plan (Style minimaliste de la maquette) */}
           <div className="flex items-end gap-3 h-20 mt-6 w-full opacity-60 group-hover:opacity-80 transition-opacity">
             <div className="bg-linear-to-t from-[#FF6B2C]/40 to-[#FF6B2C]/10 w-full h-[40%] rounded-t-lg"></div>
@@ -58,7 +84,7 @@ export default function Expenses() {
 
       {/* 2. ACTIONS DE FILTRES ET EN-TÊTE TABLEAU */}
       <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-6">
-        
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Filtres de sélection */}
           <div className="flex flex-wrap items-center gap-3">
@@ -97,33 +123,61 @@ export default function Expenses() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40 text-xs">
-              {initialExpenses.map((exp) => {
-                const IconComponent = exp.icon;
-                return (
-                  <tr key={exp.id} className="hover:bg-[#0B131F]/30 transition-colors">
-                    <td className="py-4 text-slate-400 font-medium">{exp.date}</td>
-                    <td className="py-4 font-semibold text-white flex items-center gap-2.5">
-                      <span className="text-[#FF6B2C]"><IconComponent size={15} /></span>
-                      {exp.merchant}
-                    </td>
-                    <td className="py-4">
-                      <span className="bg-[#1A263B] text-slate-400 px-2.5 py-1 rounded-lg border border-slate-800/60 text-[11px]">
-                        {exp.category}
-                      </span>
-                    </td>
-                    <td className="py-4 text-right font-mono font-bold text-sm text-white">{exp.amount}</td>
-                    <td className="py-4 text-right">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${
-                        exp.status === 'Payé' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                        exp.status === 'En attente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        'bg-red-500/10 text-red-400 border-red-500/20'
-                      }`}>
-                        {exp.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-slate-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <Loader2 className="animate-spin" size={16} />
+                      Chargement de vos dépenses...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-red-400">
+                    <div className="flex justify-center items-center gap-2">
+                      <AlertTriangle size={16} />
+                      {error}
+                    </div>
+                  </td>
+                </tr>
+              ) : expenses.length > 0 ? (
+                expenses.map((exp) => {
+                  const IconComponent = getCategoryIcon(exp.category);
+                  const formattedDate = new Date(exp.date).toLocaleDateString('fr-FR', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                  });
+                  return (
+                    <tr key={exp._id} className="hover:bg-[#0B131F]/30 transition-colors">
+                      <td className="py-4 text-slate-400 font-medium">{formattedDate}</td>
+                      <td className="py-4 font-semibold text-white flex items-center gap-2.5">
+                        <span className="text-[#FF6B2C]"><IconComponent size={15} /></span>
+                        {exp.category} {/* fallback if no merchant is stored in db */}
+                      </td>
+                      <td className="py-4">
+                        <span className="bg-[#1A263B] text-slate-400 px-2.5 py-1 rounded-lg border border-slate-800/60 text-[11px]">
+                          {exp.category}
+                        </span>
+                      </td>
+                      <td className="py-4 text-right font-mono font-bold text-sm text-white">{exp.amount} {exp.currency}</td>
+                      <td className="py-4 text-right">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${exp.status === 'Approuvée' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                          exp.status === 'En attente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            'bg-red-500/10 text-red-400 border-red-500/20'
+                          }`}>
+                          {exp.status || 'En attente'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-slate-500 font-medium">
+                    Aucune dépense enregistrée.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -144,7 +198,7 @@ export default function Expenses() {
 
       {/* 4. BLOC BAS : TOP CATÉGORIES & DRAG & DROP IA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
+
         {/* Top Catégories (Progress bar) */}
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-4">
           <h3 className="text-sm font-bold text-white">Top Catégories</h3>

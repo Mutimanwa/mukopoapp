@@ -1,27 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, User, Search, Clock, DollarSign, Calendar, Filter } from 'lucide-react';
-
-const initialPendingList = [
-  { id: "NDF-891", employee: "Alain Ndikumana", date: "02 Juin 2026", category: "Transport", amount: "120.00", project: "TenderFlow" },
-  { id: "NDF-892", employee: "Bella Inamahoro", date: "01 Juin 2026", category: "Restauration", amount: "45.50", project: "SmartFly" },
-  { id: "NDF-893", employee: "Clément Nkurunziza", date: "29 Mai 2026", category: "Hébergement", amount: "310.00", project: "RE-START" },
-];
+import { ArrowRight, User, Search, Clock, DollarSign, Calendar, Filter, Loader2, AlertTriangle } from 'lucide-react';
+import apiClient from '../../services/api';
 
 export default function PendingExpenses() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Toutes');
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredExpenses = initialPendingList.filter(row => {
-    const matchesSearch = row.employee.toLowerCase().includes(search.toLowerCase()) || 
-                          row.id.toLowerCase().includes(search.toLowerCase()) ||
-                          row.project.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const { data } = await apiClient.get('/expenses');
+        // Ne garder que les dépenses "En attente" pour le manager
+        const pending = data.filter(e => e.status === 'En attente' || !e.status);
+        setExpenses(pending);
+      } catch (err) {
+        console.error(err);
+        setError("Impossible de charger les demandes.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  const filteredExpenses = expenses.filter(row => {
+    const employeeName = row.userId ? row.userId.name : 'Inconnu';
+    const matchesSearch = employeeName.toLowerCase().includes(search.toLowerCase()) ||
+      row._id.toLowerCase().includes(search.toLowerCase()) ||
+      (row.project || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === 'Toutes' || row.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const totalAmount = filteredExpenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+  const totalAmount = filteredExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -36,7 +52,7 @@ export default function PendingExpenses() {
         <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-slate-500 font-bold tracking-wider">Total en attente</span>
-            <p className="text-xl font-black text-white font-mono">{filteredExpenses.length} dossiers</p>
+            <p className="text-xl font-black text-white font-mono">{loading ? '...' : filteredExpenses.length} dossiers</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/15 text-amber-400 flex items-center justify-center">
             <Clock size={18} />
@@ -70,9 +86,9 @@ export default function PendingExpenses() {
           {/* Barre de recherche */}
           <div className="relative w-full md:w-80">
             <Search size={14} className="absolute left-4 top-3.5 text-slate-500" />
-            <input 
-              type="text" 
-              placeholder="Rechercher par collaborateur, ID..." 
+            <input
+              type="text"
+              placeholder="Rechercher par collaborateur, ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-[#1A263B] text-slate-200 text-xs pl-10 pr-4 py-3 rounded-xl border border-slate-800 outline-none focus:border-muko-orange/50 transition-colors"
@@ -85,11 +101,10 @@ export default function PendingExpenses() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                  selectedCategory === category 
-                    ? 'bg-muko-orange text-white border-transparent' 
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${selectedCategory === category
+                    ? 'bg-muko-orange text-white border-transparent'
                     : 'bg-[#1A263B] text-slate-400 border-slate-800 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 {category}
               </button>
@@ -111,26 +126,46 @@ export default function PendingExpenses() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40 text-xs text-slate-300">
-              {filteredExpenses.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-slate-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <Loader2 className="animate-spin" size={16} />
+                      Chargement des demandes...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-red-400">
+                    <div className="flex justify-center items-center gap-2">
+                      <AlertTriangle size={16} />
+                      {error}
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredExpenses.length > 0 ? (
                 filteredExpenses.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#0B131F]/30 transition-colors group">
+                  <tr key={row._id} className="hover:bg-[#0B131F]/30 transition-colors group">
                     <td className="py-4 px-4 font-semibold text-white flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-[#1A263B] border border-slate-800 flex items-center justify-center text-slate-400">
                         <User size={12} />
                       </div>
-                      {row.employee}
+                      {row.userId ? row.userId.name : 'Inconnu'}
                     </td>
-                    <td className="py-4 px-4 font-mono text-[11px] text-slate-400">{row.date}</td>
+                    <td className="py-4 px-4 font-mono text-[11px] text-slate-400">
+                      {new Date(row.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </td>
                     <td className="py-4 px-4">
                       <span className="px-2.5 py-0.5 rounded-lg bg-[#1A263B] text-slate-300 border border-slate-800/80 text-[10px]">
                         {row.category}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-slate-400 font-medium">{row.project}</td>
-                    <td className="py-4 px-4 text-right font-bold font-mono text-white">{parseFloat(row.amount).toFixed(2)} €</td>
+                    <td className="py-4 px-4 text-slate-400 font-medium">{row.project || "Général"}</td>
+                    <td className="py-4 px-4 text-right font-bold font-mono text-white">{row.amount.toFixed(2)} {row.currency || '€'}</td>
                     <td className="py-4 px-4 text-right">
-                      <button 
-                        onClick={() => navigate(`/validation/detail/${row.id}`)}
+                      <button
+                        onClick={() => navigate(`/validation/detail/${row._id}`)}
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-muko-orange hover:text-white transition-colors bg-muko-orange/5 hover:bg-muko-orange px-3 py-1.5 rounded-lg border border-muko-orange/20 cursor-pointer"
                       >
                         Traiter <ArrowRight size={12} />

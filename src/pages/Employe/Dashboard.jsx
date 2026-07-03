@@ -1,28 +1,32 @@
-import { ArrowUpRight, ArrowDownRight, Wallet, CreditCard, RefreshCw, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowUpRight, ArrowDownRight, Wallet, CreditCard, RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-// Données fictives pour le graphique d'évolution budgétaire
-const chartData = [
-  { name: 'Jan', Depenses: 2400, Budget: 4000 },
-  { name: 'Fév', Depenses: 1398, Budget: 4000 },
-  { name: 'Mar', Depenses: 9800, Budget: 4000 },
-  { name: 'Avr', Depenses: 3908, Budget: 4000 },
-  { name: 'Mai', Depenses: 4800, Budget: 4000 },
-  { name: 'Juin', Depenses: 3800, Budget: 4000 },
-];
-
-// Données fictives pour les dernières transactions
-const transactions = [
-  { id: 'TX892', merchant: 'Amazon Web Services', category: 'Infrastructure', date: '30 Mai 2026', amount: -320.50, status: 'Validé' },
-  { id: 'TX891', merchant: 'Safi Kibasomba (Frais)', category: 'Déplacement', date: '28 Mai 2026', amount: 45.00, status: 'En attente' },
-  { id: 'TX890', merchant: 'Le Bistro Bujumbura', category: 'Repas d\'affaires', date: '25 Mai 2026', amount: -120.00, status: 'Validé' },
-  { id: 'TX889', merchant: 'GitHub Enterprise', category: 'Outils Dev', date: '22 Mai 2026', amount: -250.00, status: 'Validé' },
-];
+import apiClient from '../../services/api';
 
 export default function Dashboard() {
+  const [data, setData] = useState({ kpis: {}, chartData: [], transactions: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // On suppose une route API qui renvoie toutes les données du dashboard
+        const response = await apiClient.get('/dashboard/employee');
+        setData(response.data);
+      } catch (err) {
+        console.error(err);
+        setError("Impossible de charger les données du tableau de bord.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <div className="space-y-8 animate-fade-in">
-      
+
       {/* 1. SECTION : En-tête de bienvenue */}
       <div className="flex justify-between items-center">
         <div>
@@ -36,13 +40,13 @@ export default function Dashboard() {
 
       {/* 2. SECTION : Cartes de Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
+
         {/* Carte Solde */}
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
           <div className="space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Solde Disponible</span>
-            <h3 className="text-2xl font-bold text-white font-mono">14 850,00 €</h3>
-            <span className="text-[10px] text-green-400 flex items-center gap-1 font-mono">
+            <h3 className="text-2xl font-bold text-white font-mono">{loading ? '...' : `${data.kpis?.balance?.toFixed(2) || '0.00'} €`}</h3>
+            <span className="text-[10px] text-green-400 flex items-center gap-1 font-mono opacity-70">
               <ArrowUpRight size={12} /> +12.3% ce mois
             </span>
           </div>
@@ -55,8 +59,8 @@ export default function Dashboard() {
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
           <div className="space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Dépenses du Mois</span>
-            <h3 className="text-2xl font-bold text-white font-mono">4 250,00 €</h3>
-            <span className="text-[10px] text-red-400 flex items-center gap-1 font-mono">
+            <h3 className="text-2xl font-bold text-white font-mono">{loading ? '...' : `${data.kpis?.monthlyExpenses?.toFixed(2) || '0.00'} €`}</h3>
+            <span className="text-[10px] text-red-400 flex items-center gap-1 font-mono opacity-70">
               <ArrowDownRight size={12} /> +4.1% vs Avril
             </span>
           </div>
@@ -69,8 +73,8 @@ export default function Dashboard() {
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
           <div className="space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Remboursements en attente</span>
-            <h3 className="text-2xl font-bold text-white font-mono">1 120,00 €</h3>
-            <span className="text-[10px] text-slate-500 font-mono">3 requêtes actives</span>
+            <h3 className="text-2xl font-bold text-white font-mono">{loading ? '...' : `${data.kpis?.pendingRefunds?.toFixed(2) || '0.00'} €`}</h3>
+            <span className="text-[10px] text-slate-500 font-mono">{data.kpis?.pendingCount || 0} requêtes actives</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
             <RefreshCw size={22} />
@@ -78,7 +82,7 @@ export default function Dashboard() {
         </div>
 
       </div>
-    
+
       {/* 3. SECTION : Graphique central */}
       <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-4">
         <div className="flex justify-between items-center">
@@ -99,17 +103,17 @@ export default function Dashboard() {
         {/* Graphique Haute Performance Recharts */}
         <div className="h-72 w-full pt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={data.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorDepenses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF6B2C" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#FF6B2C" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#FF6B2C" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#FF6B2C" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1A263B" vertical={false} />
               <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#111C2E', borderColor: '#1A263B', borderRadius: '12px' }}
                 itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
               />
@@ -139,30 +143,39 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40 text-xs">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-[#0B131F]/30 transition-colors group">
-                  <td className="py-4 font-mono text-slate-500 group-hover:text-slate-400">{tx.id}</td>
-                  <td className="py-4 font-medium text-white">{tx.merchant}</td>
-                  <td className="py-4">
-                    <span className="px-2.5 py-1 rounded-lg bg-[#1A263B] text-slate-300 border border-slate-800">
-                      {tx.category}
-                    </span>
-                  </td>
-                  <td className="py-4 text-slate-400">{tx.date}</td>
-                  <td className={`py-4 text-right font-mono font-semibold ${tx.amount < 0 ? 'text-slate-200' : 'text-[#FF6B2C]'}`}>
-                    {tx.amount < 0 ? '' : '+'}{tx.amount.toFixed(2)} €
-                  </td>
-                  <td className="py-4 text-right">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] border ${
-                      tx.status === 'Validé' 
-                        ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                    }`}>
-                      • {tx.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan="6" className="text-center py-6 text-slate-500"><Loader2 className="inline-block animate-spin" /></td></tr>
+              ) : error ? (
+                <tr><td colSpan="6" className="text-center py-6 text-red-400"><AlertTriangle className="inline-block mr-2" />{error}</td></tr>
+              ) : data.transactions.length === 0 ? (
+                <tr><td colSpan="6" className="text-center py-6 text-slate-500">Aucune transaction récente.</td></tr>
+              ) : (
+                data.transactions.map((tx) => (
+                  <tr key={tx._id} className="hover:bg-[#0B131F]/30 transition-colors group">
+                    <td className="py-4 font-mono text-slate-500 group-hover:text-slate-400">{tx._id.slice(-6).toUpperCase()}</td>
+                    <td className="py-4 font-medium text-white">{tx.merchant || tx.category}</td>
+                    <td className="py-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-[#1A263B] text-slate-300 border border-slate-800">
+                        {tx.category}
+                      </span>
+                    </td>
+                    <td className="py-4 text-slate-400">{new Date(tx.date).toLocaleDateString()}</td>
+                    <td className={`py-4 text-right font-mono font-semibold text-slate-200`}>
+                      {tx.amount.toFixed(2)} {tx.currency}
+                    </td>
+                    <td className="py-4 text-right">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] border ${tx.status === 'Approuvée' || tx.status === 'Payé'
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                          : tx.status === 'Rejeté'
+                            ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}>
+                        • {tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

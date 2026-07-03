@@ -25,10 +25,16 @@ const expenseSchema = new mongoose.Schema({
     receiptUrl: {
         type: String
     },
+    description: {
+        type: String
+    },
+    project: {
+        type: String
+    },
     status: {
         type: String,
-        enum: ['PendingManager', 'PendingFinance', 'Approved', 'Rejected', 'Refunded'],
-        default: 'PendingManager'
+        enum: ['En attente', 'Approuvée', 'Rejeté', 'Payé'],
+        default: 'En attente'
     },
     history: [{
         updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
