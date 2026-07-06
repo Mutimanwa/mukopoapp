@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import users from './data/users.js';
-import User from './models/User.js';
-import connectDB from './config/db.js';
+import users from '../src/users.js';
+import User from './src/models/User.js';
+import connectDB from './src/config/db.js';
 
 // Obtenir le chemin du répertoire actuel (ES modules)
 const __filename = fileURLToPath(import.meta.url);
