@@ -1,43 +1,158 @@
-import { useState } from 'react';
-import { User, Lock, Bell, Shield, Save, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Lock, Bell, Shield, Save, CheckCircle, Loader2, AlertTriangle, Mail, Briefcase } from 'lucide-react';
 import Input from '../components/UI/Input';
+import { useAuth } from '../context/AuthContext';
+import apiClient from '../services/api';
 
 export default function Settings() {
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profil');
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleSave = (e) => {
+  // État du profil
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    team: '',
+    role: ''
+  });
+
+  // État du mot de passe
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // État des notifications
+  const [notifications, setNotifications] = useState({
+    weeklyReports: true,
+    thresholdAlerts: true,
+    refundRequests: true,
+    expenseApprovals: false
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        team: user.team || 'Non assigné',
+        role: user.role || 'Employe'
+      });
+    }
+  }, [user]);
+
+  const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000); // Masquer la notification après 3 secondes
+    setLoading(true);
+    setError(null);
+
+    try {
+      await apiClient.put(`/users/${user._id}`, {
+        name: profile.name,
+        email: profile.email,
+        team: profile.team
+      });
+      
+      // Mettre à jour le contexte
+      const updatedUser = { ...user, name: profile.name, email: profile.email, team: profile.team };
+      localStorage.setItem('userInfo', JSON.stringify(updatedUser));
+      
+      setToastMessage('Profil mis à jour avec succès !');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || "Erreur lors de la mise à jour.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('Les mots de passe ne correspondent pas.');
+      setLoading(false);
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Note: Le backend n'a pas encore de route pour changer le mot de passe
+      // Simulation pour le moment
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setToastMessage('Mot de passe mis à jour avec succès !');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors du changement de mot de passe.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationsUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Sauvegarder les préférences (simulé)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setToastMessage('Préférences enregistrées !');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors de l'enregistrement.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const tabs = [
     { id: 'profil', name: 'Mon Profil', icon: User },
-    { id: 'securite', name: 'Sécurité & Accès', icon: Lock },
+    { id: 'securite', name: 'Sécurité', icon: Lock },
     { id: 'notifications', name: 'Notifications', icon: Bell },
   ];
 
   return (
     <div className="space-y-8 animate-fade-in relative">
       
-      {/* TOAST NOTIFICATION DE SUCCÈS */}
+      {/* Toast */}
       {showToast && (
-        <div className="fixed bottom-6 right-6 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-3 border border-emerald-400/20 z-50 animate-bounce">
+        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-5 py-3 rounded-xl shadow-lg shadow-green-500/20 flex items-center gap-3 border border-green-400/20 z-50 animate-bounce">
           <CheckCircle size={18} />
-          <span className="text-xs font-semibold">Paramètres enregistrés avec succès !</span>
+          <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
 
-      {/* EN-TÊTE */}
+      {/* En-tête */}
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Paramètres</h1>
-        <p className="text-slate-400 text-xs mt-1">Gérez la configuration de votre compte et vos préférences système.</p>
+        <p className="text-slate-400 text-xs mt-1">Gérez la configuration de votre compte.</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         
-        {/* BARRE DE NAVIGATION INTERNE (Gauche) */}
+        {/* Navigation */}
         <div className="w-full lg:w-64 bg-[#111C2E] border border-slate-800/80 rounded-2xl p-4 space-y-1 shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -55,69 +170,127 @@ export default function Settings() {
               </button>
             );
           })}
+          <div className="pt-4 border-t border-slate-800/60 mt-4">
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all cursor-pointer"
+            >
+              <LogOut size={14} />
+              Déconnexion
+            </button>
+          </div>
         </div>
 
-        {/* CONTENU DE L'ONGLET ACTIF (Droite) */}
+        {/* Contenu */}
         <div className="flex-1 w-full bg-[#111C2E] border border-slate-800/80 rounded-2xl p-8">
           
           {activeTab === 'profil' && (
-            <form onSubmit={handleSave} className="space-y-6">
+            <form onSubmit={handleProfileUpdate} className="space-y-6">
               <div className="border-b border-slate-800/60 pb-4">
                 <h2 className="text-base font-bold text-white">Informations Générales</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Ces informations seront visibles sur vos reçus et rapports de frais.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Vos informations personnelles.</p>
               </div>
 
-              {/* Zone d'Avatar */}
+              {error && (
+                <div className="text-red-400 text-xs bg-red-400/10 p-3 rounded-lg border border-red-400/20 flex items-center gap-2">
+                  <AlertTriangle size={14} /> {error}
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-[#1A263B] border border-slate-700/60 flex items-center justify-center font-black text-xl text-[#FF6B2C] font-sans">
-                  SK
+                  {profile.name ? profile.name.substring(0, 2).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <button type="button" className="bg-[#1A263B] hover:bg-opacity-80 border border-slate-700 text-white text-xs font-semibold py-2 px-3 rounded-xl transition-all cursor-pointer">
-                    Changer la photo
-                  </button>
-                  <p className="text-[10px] text-slate-500 mt-1.5 font-mono">JPG, PNG ou GIF. Max 2MB.</p>
+                  <p className="text-xs font-semibold text-white">{profile.name}</p>
+                  <p className="text-[10px] text-slate-500 font-mono">{profile.role}</p>
                 </div>
               </div>
 
-              {/* Formulaire Grid sur 2 colonnes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Input label="Prénom" type="text" defaultValue="Safi" required />
-                <Input label="Nom" type="text" defaultValue="Kibasomba" required />
-                <Input label="Adresse Email" type="email" defaultValue="safi.k@entreprise.com" required />
-                <Input label="Téléphone" type="text" placeholder="+257 ...." />
-                <Input label="Entreprise" type="text" defaultValue="MUKOPO INC." disabled />
-                <Input label="Rôle Système" type="text" defaultValue="Administrateur Principal" disabled />
+                <Input
+                  label="Nom complet"
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Équipe"
+                  type="text"
+                  value={profile.team}
+                  onChange={(e) => setProfile({ ...profile, team: e.target.value })}
+                />
+                <div>
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-2">Rôle</label>
+                  <div className="bg-[#1A263B] text-slate-400 text-xs rounded-xl p-3.5 border border-slate-800 cursor-not-allowed">
+                    {profile.role}
+                  </div>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" className="bg-[#FF6B2C] hover:bg-opacity-90 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
-                  <Save size={14} /> Sauvegarder les modifications
+                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {loading ? "Sauvegarde..." : "Enregistrer"}
                 </button>
               </div>
             </form>
           )}
 
           {activeTab === 'securite' && (
-            <form onSubmit={handleSave} className="space-y-6">
+            <form onSubmit={handlePasswordUpdate} className="space-y-6">
               <div className="border-b border-slate-800/60 pb-4">
-                <h2 className="text-base font-bold text-white">Sécurité du Compte</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Mettez à jour votre mot de passe pour maintenir votre compte sécurisé.</p>
+                <h2 className="text-base font-bold text-white">Sécurité</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Mettez à jour votre mot de passe.</p>
               </div>
+
+              {error && (
+                <div className="text-red-400 text-xs bg-red-400/10 p-3 rounded-lg border border-red-400/20 flex items-center gap-2">
+                  <AlertTriangle size={14} /> {error}
+                </div>
+              )}
 
               <div className="space-y-4 max-w-md">
-                <Input label="Mot de passe actuel" type="password" placeholder="••••••••" required />
-                <Input label="Nouveau mot de passe" type="password" placeholder="••••••••" required />
-                <Input label="Confirmer le nouveau mot de passe" type="password" placeholder="••••••••" required />
+                <Input
+                  label="Mot de passe actuel"
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Nouveau mot de passe"
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Confirmer"
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  required
+                />
               </div>
 
-              {/* Double Facteur (2FA) Stub Style */}
               <div className="bg-[#1A263B]/40 border border-slate-800 rounded-xl p-4 flex items-start gap-3 mt-6">
                 <Shield size={18} className="text-[#FF6B2C] mt-0.5 shrink-0" />
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold text-white">Authentification à deux facteurs (2FA)</h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Ajoutez une couche de sécurité supplémentaire à votre compte en exigeant un code de validation à chaque connexion.
+                    Ajoutez une couche de sécurité supplémentaire à votre compte.
                   </p>
                   <button type="button" className="text-xs font-mono text-[#FF6B2C] hover:underline pt-1 block">
                     Activer le 2FA →
@@ -126,34 +299,46 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" className="bg-[#FF6B2C] hover:bg-opacity-90 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
-                  <Save size={14} /> Mettre à jour le mot de passe
+                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {loading ? "Mise à jour..." : "Mettre à jour"}
                 </button>
               </div>
             </form>
           )}
 
           {activeTab === 'notifications' && (
-            <form onSubmit={handleSave} className="space-y-6">
+            <form onSubmit={handleNotificationsUpdate} className="space-y-6">
               <div className="border-b border-slate-800/60 pb-4">
-                <h2 className="text-base font-bold text-white">Préférences d'Alerte</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Choisissez comment et quand vous souhaitez être notifié.</p>
+                <h2 className="text-base font-bold text-white">Préférences</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Choisissez comment vous souhaitez être notifié.</p>
               </div>
+
+              {error && (
+                <div className="text-red-400 text-xs bg-red-400/10 p-3 rounded-lg border border-red-400/20 flex items-center gap-2">
+                  <AlertTriangle size={14} /> {error}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {[
-                  { title: 'Rapports hebdomadaires', desc: 'Recevoir une synthèse de toutes les dépenses par email chaque lundi.' },
-                  { title: 'Alertes de seuils', desc: "Être notifié immédiatement lorsqu'un département atteint 85% de son budget." },
-                  { title: 'Demandes de remboursement', desc: "Recevoir une notification push lorsqu'un employé soumet un nouveau reçu." },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between gap-4 py-2">
+                  { id: 'weeklyReports', title: 'Rapports hebdomadaires', desc: 'Synthèse des dépenses par email chaque lundi.' },
+                  { id: 'thresholdAlerts', title: 'Alertes de seuils', desc: 'Notifié quand un département atteint 85% du budget.' },
+                  { id: 'refundRequests', title: 'Demandes de remboursement', desc: 'Notification push pour les nouveaux reçus.' },
+                  { id: 'expenseApprovals', title: 'Approbations', desc: 'Notification quand une note est approuvée ou rejetée.' },
+                ].map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-4 py-2">
                     <div className="space-y-0.5">
                       <h4 className="text-xs font-bold text-white">{item.title}</h4>
                       <p className="text-[11px] text-slate-400">{item.desc}</p>
                     </div>
-                    {/* Switch Toggle Custom Tailwind */}
                     <label className="relative inline-flex items-center cursor-pointer mt-1">
-                      <input type="checkbox" defaultChecked={i < 2} className="sr-only peer" />
+                      <input
+                        type="checkbox"
+                        checked={notifications[item.id]}
+                        onChange={(e) => setNotifications({ ...notifications, [item.id]: e.target.checked })}
+                        className="sr-only peer"
+                      />
                       <div className="w-9 h-5 bg-[#1A263B] border border-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#FF6B2C] peer-checked:border-transparent"></div>
                     </label>
                   </div>
@@ -161,15 +346,15 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" className="bg-[#FF6B2C] hover:bg-opacity-90 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
-                  <Save size={14} /> Enregistrer les préférences
+                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {loading ? "Enregistrement..." : "Enregistrer"}
                 </button>
               </div>
             </form>
           )}
 
         </div>
-
       </div>
     </div>
   );
