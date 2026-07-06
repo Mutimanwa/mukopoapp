@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-// Crée une instance d'axios avec une configuration de base.
-// Le port 5000 correspond à celui mentionné dans le cahier des charges pour le backend.
 const apiClient = axios.create({
     baseURL: 'http://localhost:5000/api',
     headers: {
@@ -9,7 +7,7 @@ const apiClient = axios.create({
     },
 });
 
-// Intercepteur pour injecter le token JWT dans chaque requête sortante.
+// Intercepteur pour injecter le token JWT
 apiClient.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -19,6 +17,20 @@ apiClient.interceptors.request.use(
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Intercepteur pour gérer les erreurs de réponse
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Token expiré ou invalide
+            localStorage.removeItem('token');
+            localStorage.removeItem('userInfo');
+            window.location.href = '/connexion';
+        }
         return Promise.reject(error);
     }
 );

@@ -33,8 +33,6 @@ import FinanceDashboard from './pages/Finance/FinanceDashboard';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserManagement from './pages/Admin/UserManagement';
 import UserForm from './pages/Admin/UserForm';
-import OrgStructure from './pages/Admin/OrgStructure';
-import WorkflowSettings from './pages/Admin/WorkflowSettings';
 import AuditLogs from './pages/Admin/AuditLogs';
 
 // Imports des pages complémentaires
@@ -109,8 +107,6 @@ export default function App() {
                 <Route path="admin/utilisateurs" element={<UserManagement />} />
                 <Route path="admin/utilisateurs/creer" element={<UserForm />} />
                 <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
-                <Route path="admin/organisation" element={<OrgStructure />} />
-                <Route path="admin/parametres" element={<WorkflowSettings />} />
                 <Route path="admin/audit" element={<AuditLogs />} />
               </Route>
             </Route>

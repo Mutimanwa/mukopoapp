@@ -1,5 +1,13 @@
 import express from 'express';
-import { createExpense, getMyExpenses, getExpenses, updateExpenseStatus, updateExpense, deleteExpense } from '../controllers/expenseController.js';
+import { 
+    createExpense, 
+    getMyExpenses, 
+    getExpenses, 
+    updateExpenseStatus, 
+    updateExpense, 
+    deleteExpense,
+    getExpenseStats 
+} from '../controllers/expenseController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { authorize } from '../middlewares/roleMiddleware.js';
 
@@ -11,6 +19,9 @@ router.route('/')
 
 router.route('/myexpenses')
     .get(protect, getMyExpenses);
+
+router.route('/stats')
+    .get(protect, getExpenseStats);
 
 router.route('/:id/status')
     .put(protect, authorize('Admin', 'Finance', 'Manager'), updateExpenseStatus);

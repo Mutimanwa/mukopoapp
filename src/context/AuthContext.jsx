@@ -7,11 +7,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Vérifier le token au chargement
   useEffect(() => {
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
-      setUser(JSON.parse(userInfo));
+      try {
+        const parsedUser = JSON.parse(userInfo);
+        setUser(parsedUser);
+      } catch (error) {
+        localStorage.removeItem('userInfo');
+      }
     }
     setLoading(false);
   }, []);
@@ -26,7 +30,7 @@ export function AuthProvider({ children }) {
         _id: data._id,
         name: data.name,
         email: data.email,
-        role: data.role.toLowerCase() // Normaliser le rôle pour correspondre aux routes React
+        role: data.role.toLowerCase()
       }));
 
       setUser({
@@ -35,13 +39,12 @@ export function AuthProvider({ children }) {
         email: data.email,
         role: data.role.toLowerCase()
       });
+      
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        message: error.response && error.response.data.message
-          ? error.response.data.message
-          : error.message
+        message: error.response?.data?.message || 'Erreur de connexion'
       };
     }
   };

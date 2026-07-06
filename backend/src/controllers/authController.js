@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import AuditLog from '../models/AuditLog.js';
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -12,6 +13,15 @@ const generateToken = (id) => {
 // @access  Public
 const registerUser = async (req, res) => {
     const { name, email, password, role } = req.body;
+
+    // Validation simple
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Tous les champs sont requis' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ message: 'Le mot de passe doit faire au moins 6 caractères' });
+    }
 
     try {
         const userExists = await User.findOne({ email });
@@ -28,12 +38,20 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
+            // Log de l'action
+            await AuditLog.create({
+                action: 'REGISTER',
+                userId: user._id,
+                details: `Nouvel utilisateur inscrit: ${user.email}`
+            });
+
             res.status(201).json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
                 token: generateToken(user._id),
+                message: 'Inscription réussie'
             });
         } else {
             res.status(400).json({ message: 'Données utilisateur invalides' });
@@ -49,16 +67,28 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email et mot de passe requis' });
+    }
+
     try {
         const user = await User.findOne({ email });
 
         if (user && (await user.matchPassword(password))) {
+            // Log de connexion
+            await AuditLog.create({
+                action: 'LOGIN',
+                userId: user._id,
+                details: `Connexion de ${user.email}`
+            });
+
             res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
                 token: generateToken(user._id),
+                message: 'Connexion réussie'
             });
         } else {
             res.status(401).json({ message: 'Email ou mot de passe invalide' });

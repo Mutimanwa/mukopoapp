@@ -9,11 +9,13 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        match: [/.+\@.+\..+/, 'Veuillez entrer une adresse email valide'] // Ajout de la validation de format
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        select: false // Ne pas retourner le mot de passe par défaut lors des requêtes
     },
     role: {
         type: String,
