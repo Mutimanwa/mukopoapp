@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages Auth
 import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
 
 // Pages Rôles (On crée des points d'entrées intelligents)
 import Dashboard from './pages/Employe/Dashboard';
@@ -63,6 +64,7 @@ export default function App() {
         <Routes>
           {/* Routes d'accès authentification autonomes */}
           <Route path="/connexion" element={<Login />} />
+          <Route path="/inscription" element={<Register />} />
 
           {/* Application protégée par l'authentification globale */}
           <Route element={<ProtectedRoute />}>

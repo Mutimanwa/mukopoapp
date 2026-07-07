@@ -1,14 +1,38 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Building2, Lock, Eye } from 'lucide-react';
+import { useState } from 'react';
+import apiClient from '../../services/api';
 import Input from '../../components/UI/Input';
 
 export default function Register() {
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [company, setCompany] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleRegister = async (e) => {
     e.preventDefault();
-    // Simulation d'inscription -> Redirection directe vers le tableau de bord
-    navigate('/');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await apiClient.post('/auth/register', {
+        name,
+        email,
+        password,
+        role: 'Employe'
+      });
+      navigate('/connexion');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de créer le compte');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,6 +86,8 @@ export default function Register() {
               <Input 
                 label="Nom complet" 
                 type="text" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Nom complet" 
                 icon={User} 
                 required
@@ -70,6 +96,8 @@ export default function Register() {
               <Input 
                 label="Adresse Email" 
                 type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="jemail@entreprise.com" 
                 icon={Mail} 
                 required
@@ -78,25 +106,38 @@ export default function Register() {
               <Input 
                 label="Entreprise" 
                 type="text" 
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
                 placeholder="Nom de votre société" 
                 icon={Building2} 
-                required
               />
               
               <div className="relative">
                 <Input 
                   label="Mot de passe" 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
                   icon={Lock} 
                   required
                 />
-                <button type="button" className="absolute right-4 bottom-3.5 text-slate-400 hover:text-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 bottom-3.5 text-slate-400 hover:text-slate-200"
+                >
                   <Eye size={18} />
                 </button>
               </div>
 
-              <button type="submit" className="w-full bg-[#FF6B2C] hover:bg-opacity-90 text-white font-medium py-3.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-6 shadow-lg shadow-[#FF6B2C]/10 active:scale-[0.99] cursor-pointer">
+              {error && (
+                <div className="text-red-400 text-xs mt-2 bg-red-400/10 p-2 rounded-lg border border-red-400/20">
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={isLoading} className="w-full bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white font-medium py-3.5 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-6 shadow-lg shadow-[#FF6B2C]/10 active:scale-[0.99] cursor-pointer">
                 Créer un compte →
               </button>
             </form>
