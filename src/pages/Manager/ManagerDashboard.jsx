@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckSquare, AlertCircle, Clock, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
@@ -10,35 +11,54 @@ export default function ManagerDashboard() {
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, totalAmount: 0 });
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const { data } = await apiClient.get('/expenses');
+        // Extraire les données correctement avec extractData
+        const expenses = extractData(data);
+        
+        // Vérifier que c'est un tableau
+        if (!Array.isArray(expenses)) {
+          console.error('Les dépenses ne sont pas un tableau:', expenses);
+          setError("Format de données invalide.");
+          setLoading(false);
+          return;
+        }
 
         // Calcul des statistiques
-        const pending = data.filter(e => e.status === 'En attente').length;
-        const approved = data.filter(e => e.status === 'Approuvée').length;
-        const rejected = data.filter(e => e.status === 'Rejeté').length;
-        const totalAmount = data.filter(e => e.status === 'Approuvée').reduce((sum, e) => sum + (e.amount || 0), 0);
+        const pending = expenses.filter(e => e.status === 'En attente').length;
+        const approved = expenses.filter(e => e.status === 'Approuvée').length;
+        const rejected = expenses.filter(e => e.status === 'Rejeté').length;
+        const totalAmount = expenses.filter(e => e.status === 'Approuvée').reduce((sum, e) => sum + (e.amount || 0), 0);
 
         setStats({ pending, approved, rejected, totalAmount });
 
         // Dernières demandes en attente (max 5)
-        const pendingExpenses = data.filter(e => e.status === 'En attente').slice(0, 5);
+        const pendingExpenses = expenses.filter(e => e.status === 'En attente').slice(0, 5);
         setRecentPending(pendingExpenses);
 
         // Construire les données du graphique par mois
         const monthly = {};
-        data.forEach(e => {
-          const date = new Date(e.date);
-          const label = date.toLocaleDateString('fr-FR', { month: 'short' });
-          if (!monthly[label]) monthly[label] = 0;
-          monthly[label] += e.amount || 0;
+        expenses.forEach(e => {
+          try {
+            const date = new Date(e.date);
+            const label = date.toLocaleDateString('fr-FR', { month: 'short' });
+            if (!monthly[label]) monthly[label] = 0;
+            monthly[label] += e.amount || 0;
+          } catch (err) {
+            console.warn('Erreur de date:', err);
+          }
         });
-        setChartData(Object.entries(monthly).map(([name, Dépenses]) => ({ name, Dépenses: Math.round(Dépenses) })));
+        setChartData(Object.entries(monthly).map(([name, Dépenses]) => ({ 
+          name, 
+          Dépenses: Math.round(Dépenses) 
+        })));
       } catch (err) {
         console.error("Erreur ManagerDashboard:", err);
+        setError(err.response?.data?.message || "Impossible de charger les données.");
       } finally {
         setLoading(false);
       }
@@ -50,8 +70,16 @@ export default function ManagerDashboard() {
     { label: "À valider", count: loading ? '...' : `${stats.pending} demandes`, sub: "En attente de votre décision", icon: Clock, color: "text-amber-400 bg-amber-500/10 border-amber-500/10" },
     { label: "Validées", count: loading ? '...' : `${stats.approved} notes`, sub: "Approuvées par vous", icon: CheckSquare, color: "text-green-400 bg-green-500/10 border-green-500/10" },
     { label: "Refusées", count: loading ? '...' : `${stats.rejected} requêtes`, sub: "Corrections requises", icon: AlertCircle, color: "text-red-400 bg-red-500/10 border-red-500/10" },
-    { label: "Total approuvé", count: loading ? '...' : `${stats.totalAmount.toLocaleString()} €`, sub: "Montant cumulé approuvé", icon: TrendingUp, color: "text-[#FF6B2C] bg-[#FF6B2C]/10 border-[#FF6B2C]/10" },
+    { label: "Total approuvé", count: loading ? '...' : `${stats.totalAmount.toFixed(2)} €`, sub: "Montant cumulé approuvé", icon: TrendingUp, color: "text-[#FF6B2C] bg-[#FF6B2C]/10 border-[#FF6B2C]/10" },
   ];
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-red-400">
+        <AlertTriangle className="mr-2" size={20} /> {error}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -61,7 +89,7 @@ export default function ManagerDashboard() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard Responsable</h1>
           <p className="text-slate-400 text-xs mt-1">Supervisez les engagements financiers et pilotez les validations de votre équipe.</p>
         </div>
-        <div className="text-xs font-mono text-slate-400 bg-muko-card border border-slate-800 px-4 py-2 rounded-xl">
+        <div className="text-xs font-mono text-slate-400 bg-[#111C2E] border border-slate-800 px-4 py-2 rounded-xl">
           Pôle d'approbation : <span className="text-[#FF6B2C]">Toutes les équipes</span>
         </div>
       </div>
@@ -71,7 +99,7 @@ export default function ManagerDashboard() {
         {kpiCards.map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <div key={idx} className="bg-muko-card border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
+            <div key={idx} className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-[10px] font-mono uppercase text-slate-500 font-bold tracking-wider">{stat.label}</span>
                 <p className="text-lg font-black text-white">{stat.count}</p>
@@ -87,7 +115,7 @@ export default function ManagerDashboard() {
 
       {/* 3. GRAPHIQUE DES DÉPENSES */}
       {chartData.length > 0 && (
-        <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-6 space-y-4">
+        <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
               <TrendingUp size={16} className="text-[#FF6B2C]" />
@@ -119,7 +147,7 @@ export default function ManagerDashboard() {
       )}
 
       {/* 4. DERNIÈRES DEMANDES EN ATTENTE */}
-      <div className="bg-muko-card border border-slate-800/80 rounded-2xl p-6 space-y-4">
+      <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-sm font-bold text-white">Demandes récentes en attente d'arbitrage</h2>
           <button onClick={() => navigate('/validation/attente')} className="text-xs font-mono text-[#FF6B2C] hover:underline flex items-center gap-1 cursor-pointer">
@@ -151,13 +179,17 @@ export default function ManagerDashboard() {
                 recentPending.map((row) => (
                   <tr key={row._id} className="hover:bg-[#0B131F]/30 transition-colors">
                     <td className="py-3 font-semibold text-white">{row.userId?.name || 'Inconnu'}</td>
-                    <td className="py-3 text-slate-400 font-mono">{new Date(row.date).toLocaleDateString('fr-FR')}</td>
+                    <td className="py-3 text-slate-400 font-mono">
+                      {row.date ? new Date(row.date).toLocaleDateString('fr-FR') : 'N/A'}
+                    </td>
                     <td className="py-3">
                       <span className="px-2 py-0.5 rounded bg-[#1A263B] text-slate-300 border border-slate-800/50">
-                        {row.category}
+                        {row.category || 'Non catégorisé'}
                       </span>
                     </td>
-                    <td className="py-3 text-right font-bold font-mono text-white">{row.amount} {row.currency || '€'}</td>
+                    <td className="py-3 text-right font-bold font-mono text-white">
+                      {(row.amount || 0).toFixed(2)} {row.currency || '€'}
+                    </td>
                     <td className="py-3 text-right">
                       <button
                         onClick={() => navigate(`/validation/detail/${row._id}`)}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, X, FileText, Loader2, AlertTriangle, User, Calendar, DollarSign, Briefcase, MessageSquare } from 'lucide-react';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function ApprovalDetail() {
   const navigate = useNavigate();
@@ -16,15 +17,26 @@ export default function ApprovalDetail() {
     const fetchExpense = async () => {
       try {
         const { data } = await apiClient.get('/expenses');
-        const found = data.find(e => e._id === id);
+        // Extraire les données correctement avec extractData
+        const expenses = extractData(data);
+        
+        // Vérifier que c'est un tableau
+        if (!Array.isArray(expenses)) {
+          console.error('Les dépenses ne sont pas un tableau:', expenses);
+          setError("Format de données invalide.");
+          setLoading(false);
+          return;
+        }
+
+        const found = expenses.find(e => e._id === id);
         if (found) {
           setExpense(found);
         } else {
           setError("Dépense introuvable");
         }
       } catch (err) {
-        console.error(err);
-        setError("Impossible de charger les détails");
+        console.error('Erreur fetchExpense:', err);
+        setError(err.response?.data?.message || "Impossible de charger les détails");
       } finally {
         setLoading(false);
       }
@@ -48,7 +60,7 @@ export default function ApprovalDetail() {
       });
       navigate('/validation/attente');
     } catch (err) {
-      console.error(err);
+      console.error('Erreur handleDecision:', err);
       alert(err.response?.data?.message || "Erreur lors de l'enregistrement.");
     } finally {
       setProcessing(false);
@@ -78,9 +90,9 @@ export default function ApprovalDetail() {
         <div className="lg:col-span-7 bg-[#111C2E] border border-slate-800/80 rounded-2xl p-8 space-y-6">
           <div className="border-b border-slate-800/60 pb-4">
             <span className="text-[10px] font-mono text-[#FF6B2C] uppercase tracking-wider font-bold">
-              #{expense._id.substring(expense._id.length - 8).toUpperCase()}
+              #{expense._id?.substring(expense._id.length - 8).toUpperCase() || 'N/A'}
             </span>
-            <h2 className="text-lg font-bold text-white mt-0.5">{expense.category}</h2>
+            <h2 className="text-lg font-bold text-white mt-0.5">{expense.category || 'Non catégorisé'}</h2>
             <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
               <User size={12} /> Soumis par <span className="text-white font-medium">{expense.userId?.name || 'Inconnu'}</span>
             </p>
@@ -89,7 +101,9 @@ export default function ApprovalDetail() {
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="bg-[#0B131F]/40 p-3 rounded-xl border border-slate-800/60">
               <p className="text-slate-500 mb-0.5 flex items-center gap-1"><Calendar size={12} /> Date</p>
-              <p className="text-white font-medium">{new Date(expense.date).toLocaleDateString('fr-FR')}</p>
+              <p className="text-white font-medium">
+                {expense.date ? new Date(expense.date).toLocaleDateString('fr-FR') : 'N/A'}
+              </p>
             </div>
             <div className="bg-[#0B131F]/40 p-3 rounded-xl border border-slate-800/60">
               <p className="text-slate-500 mb-0.5 flex items-center gap-1"><Briefcase size={12} /> Projet</p>
@@ -97,11 +111,13 @@ export default function ApprovalDetail() {
             </div>
             <div className="bg-[#0B131F]/40 p-3 rounded-xl border border-slate-800/60">
               <p className="text-slate-500 mb-0.5">Catégorie</p>
-              <p className="text-white font-medium">{expense.category}</p>
+              <p className="text-white font-medium">{expense.category || 'Non catégorisé'}</p>
             </div>
             <div className="bg-[#0B131F]/40 p-3 rounded-xl border border-slate-800/60">
               <p className="text-slate-500 mb-0.5 flex items-center gap-1"><DollarSign size={12} /> Montant</p>
-              <p className="text-white font-mono font-bold">{expense.amount.toFixed(2)} {expense.currency || '€'}</p>
+              <p className="text-white font-mono font-bold">
+                {(expense.amount || 0).toFixed(2)} {expense.currency || '€'}
+              </p>
             </div>
           </div>
 
@@ -117,7 +133,7 @@ export default function ApprovalDetail() {
           )}
 
           {/* Historique des commentaires */}
-          {expense.history && expense.history.length > 0 && (
+          {expense.history && Array.isArray(expense.history) && expense.history.length > 0 && (
             <div className="pt-4 border-t border-slate-800/40">
               <h4 className="text-xs font-semibold text-slate-400 mb-3">Historique</h4>
               <div className="space-y-2">
@@ -127,11 +143,11 @@ export default function ApprovalDetail() {
                       h.status === 'Approuvée' ? 'text-green-400' :
                       h.status === 'Rejeté' ? 'text-red-400' : 'text-amber-400'
                     }`}>
-                      {h.status}
+                      {h.status || 'En attente'}
                     </span>
                     <span className="text-slate-500"> - {h.comment || 'Aucun commentaire'}</span>
                     <span className="text-slate-600 ml-2">
-                      {new Date(h.updatedAt || Date.now()).toLocaleDateString()}
+                      {h.updatedAt ? new Date(h.updatedAt).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 ))}

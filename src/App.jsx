@@ -40,7 +40,6 @@ import AuditLogs from './pages/Admin/AuditLogs';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
 
-// Composant pour le dashboard selon le rôle
 function DashboardRouter() {
   const { user } = useAuth();
   const role = user?.role?.toLowerCase();
@@ -62,54 +61,44 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Route de connexion (publique) */}
           <Route path="/connexion" element={<Login />} />
 
-          {/* Routes protégées avec Layout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
-              {/* Dashboard - redirige vers le bon dashboard selon le rôle */}
+              {/* Dashboard - Point d'entrée selon le rôle */}
               <Route index element={<DashboardRouter />} />
               
               {/* Routes communes */}
               <Route path="profil" element={<Settings />} />
               <Route path="equipe/rapports" element={<Reports />} />
 
-              {/* Routes Employé - accessibles uniquement aux employés */}
-              <Route element={<ProtectedRoute allowedRoles={['employee']} />}>
-                <Route path="mes-notes" element={<Expenses />} />
-                <Route path="nouvelle-note" element={<NewExpense />} />
-                <Route path="note-detail/:id" element={<ExpenseDetail />} />
-                <Route path="modifier-note/:id" element={<EditExpense />} />
-                <Route path="mes-justificatifs" element={<ReceiptsGallery />} />
-                <Route path="mes-remboursements" element={<RefundDetail />} />
-              </Route>
+              {/* Routes Employé */}
+              <Route path="mes-notes" element={<Expenses />} />
+              <Route path="nouvelle-note" element={<NewExpense />} />
+              <Route path="note-detail/:id" element={<ExpenseDetail />} />
+              <Route path="modifier-note/:id" element={<EditExpense />} />
+              <Route path="mes-justificatifs" element={<ReceiptsGallery />} />
+              <Route path="mes-remboursements" element={<RefundDetail />} />
 
-              {/* Routes Manager - accessibles uniquement aux managers */}
-              <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-                <Route path="validation/attente" element={<PendingExpenses />} />
-                <Route path="validation/detail/:id" element={<ApprovalDetail />} />
-                <Route path="validation/historique" element={<ValidationHistory />} />
-                <Route path="equipe/collaborateurs" element={<TeamList />} />
-                <Route path="equipe/collaborateur/:id" element={<TeamMemberDetail />} />
-              </Route>
+              {/* Routes Manager */}
+              <Route path="validation/attente" element={<PendingExpenses />} />
+              <Route path="validation/detail/:id" element={<ApprovalDetail />} />
+              <Route path="validation/historique" element={<ValidationHistory />} />
+              <Route path="equipe/collaborateurs" element={<TeamList />} />
+              <Route path="equipe/collaborateur/:id" element={<TeamMemberDetail />} />
 
-              {/* Routes Finance - accessibles uniquement à la finance */}
-              <Route element={<ProtectedRoute allowedRoles={['finance']} />}>
-                <Route path="finance/traiter" element={<PendingPayouts />} />
-                <Route path="finance/payer/:id" element={<PayoutDetail />} />
-                <Route path="finance/historique" element={<PayoutHistory />} />
-                <Route path="finance/controle" element={<AuditingExpenses />} />
-                <Route path="finance/rapports" element={<ExpenseReports />} />
-              </Route>
+              {/* Routes Finance */}
+              <Route path="finance/traiter" element={<PendingPayouts />} />
+              <Route path="finance/payer/:id" element={<PayoutDetail />} />
+              <Route path="finance/historique" element={<PayoutHistory />} />
+              <Route path="finance/controle" element={<AuditingExpenses />} />
+              <Route path="finance/rapports" element={<ExpenseReports />} />
 
-              {/* Routes Admin - accessibles uniquement aux admins */}
-              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                <Route path="admin/utilisateurs" element={<UserManagement />} />
-                <Route path="admin/utilisateurs/creer" element={<UserForm />} />
-                <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
-                <Route path="admin/audit" element={<AuditLogs />} />
-              </Route>
+              {/* Routes Admin */}
+              <Route path="admin/utilisateurs" element={<UserManagement />} />
+              <Route path="admin/utilisateurs/creer" element={<UserForm />} />
+              <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
+              <Route path="admin/audit" element={<AuditLogs />} />
 
               {/* Redirection 404 */}
               <Route path="*" element={<Navigate to="/" replace />} />
