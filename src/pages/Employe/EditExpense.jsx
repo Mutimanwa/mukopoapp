@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Save, Trash2, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import Input from '../../components/UI/Input';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function EditExpense() {
   const navigate = useNavigate();
@@ -24,7 +25,8 @@ export default function EditExpense() {
     const fetchExpense = async () => {
       try {
         const { data } = await apiClient.get('/expenses/myexpenses');
-        const found = data.find(e => e._id === id);
+        const expenses = extractData(data);
+        const found = expenses.find(e => e._id === id);
         if (found) {
           setForm({
             amount: found.amount || '',

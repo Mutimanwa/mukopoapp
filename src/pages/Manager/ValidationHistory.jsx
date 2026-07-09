@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, CheckCircle2, XCircle, Clock, Calendar, Loader2, AlertTriangle, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function ValidationHistory() {
   const navigate = useNavigate();
@@ -15,14 +16,29 @@ export default function ValidationHistory() {
     const fetchHistory = async () => {
       try {
         const { data } = await apiClient.get('/expenses');
+        // Extraire les données correctement
+        const expenses = extractData(data);
+        
+        // Vérifier que c'est un tableau
+        if (!Array.isArray(expenses)) {
+          console.error('Les dépenses ne sont pas un tableau:', expenses);
+          setError("Format de données invalide.");
+          setLoading(false);
+          return;
+        }
+
         // Filtrer les dépenses approuvées ou rejetées
-        const processed = data.filter(e => e.status === 'Approuvée' || e.status === 'Rejeté');
+        const processed = expenses.filter(e => e.status === 'Approuvée' || e.status === 'Rejeté');
         // Trier par date décroissante
-        processed.sort((a, b) => new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date));
+        processed.sort((a, b) => {
+          const dateA = new Date(a.updatedAt || a.date);
+          const dateB = new Date(b.updatedAt || b.date);
+          return dateB - dateA;
+        });
         setHistory(processed);
       } catch (err) {
-        console.error(err);
-        setError("Impossible de charger l'historique.");
+        console.error('Erreur fetchHistory:', err);
+        setError(err.response?.data?.message || "Impossible de charger l'historique.");
       } finally {
         setLoading(false);
       }
@@ -30,20 +46,23 @@ export default function ValidationHistory() {
     fetchHistory();
   }, []);
 
-  const filteredHistory = history.filter(row => {
+  // Filtrer l'historique
+  const filteredHistory = Array.isArray(history) ? history.filter(row => {
     const employeeName = row.userId?.name || 'Inconnu';
     const matchesSearch = employeeName.toLowerCase().includes(search.toLowerCase()) ||
-      row._id.toLowerCase().includes(search.toLowerCase()) ||
-      row.category.toLowerCase().includes(search.toLowerCase());
+      row._id?.toLowerCase().includes(search.toLowerCase()) ||
+      row.category?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = selectedStatus === 'Tous' || row.status === selectedStatus;
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
-  const approvedCount = history.filter(item => item.status === 'Approuvée').length;
-  const approvedTotal = history
+  // Calculer les statistiques
+  const historyArray = Array.isArray(history) ? history : [];
+  const approvedCount = historyArray.filter(item => item.status === 'Approuvée').length;
+  const approvedTotal = historyArray
     .filter(item => item.status === 'Approuvée')
     .reduce((sum, item) => sum + (item.amount || 0), 0);
-  const rejectedCount = history.filter(item => item.status === 'Rejeté').length;
+  const rejectedCount = historyArray.filter(item => item.status === 'Rejeté').length;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -164,19 +183,19 @@ export default function ValidationHistory() {
                   <tr key={row._id} className="hover:bg-[#0B131F]/30 transition-colors cursor-pointer" 
                       onClick={() => navigate(`/note-detail/${row._id}`)}>
                     <td className="py-4 px-4 font-mono font-bold text-slate-400">
-                      #{row._id.substring(row._id.length - 6).toUpperCase()}
+                      #{row._id?.substring(row._id.length - 6).toUpperCase() || 'N/A'}
                     </td>
                     <td className="py-4 px-4 font-semibold text-white">{row.userId?.name || 'Inconnu'}</td>
                     <td className="py-4 px-4">
                       <span className="px-2 py-0.5 rounded bg-[#1A263B] text-slate-300 border border-slate-800/50">
-                        {row.category}
+                        {row.category || 'Non catégorisé'}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-slate-500 font-mono text-[11px]">
-                      {new Date(row.updatedAt || row.date).toLocaleDateString('fr-FR')}
+                      {row.updatedAt || row.date ? new Date(row.updatedAt || row.date).toLocaleDateString('fr-FR') : 'N/A'}
                     </td>
                     <td className="py-4 px-4 text-right font-mono font-bold text-white">
-                      {row.amount.toFixed(2)} {row.currency || '€'}
+                      {(row.amount || 0).toFixed(2)} {row.currency || '€'}
                     </td>
                     <td className="py-4 px-4 text-right">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${

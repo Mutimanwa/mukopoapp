@@ -19,27 +19,31 @@ export default function Sidebar() {
       { to: '/profil', label: 'Mon Profil', icon: Settings },
     ],
     manager: [
-      { to: '/', label: 'Dashboard Manager', icon: LayoutDashboard },
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/validation/attente', label: 'Notes à Valider', icon: CheckSquare },
       { to: '/validation/historique', label: 'Historique Validations', icon: History },
-      { to: '/equipe/rapports', label: 'Rapport d\'Équipe', icon: BarChart3 }
+      { to: '/equipe/rapports', label: 'Rapport d\'Équipe', icon: BarChart3 },
+      { to: '/equipe/collaborateurs', label: 'Mon Équipe', icon: Users },
+      { to: '/profil', label: 'Mon Profil', icon: Settings },
     ],
     finance: [
-      { to: '/', label: 'Dashboard Finance', icon: LayoutDashboard },
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/finance/traiter', label: 'Remboursements à Traiter', icon: Landmark },
       { to: '/finance/historique', label: 'Historique Paiements', icon: History },
       { to: '/finance/controle', label: 'Contrôle des Notes', icon: ShieldCheck },
       { to: '/finance/rapports', label: 'Rapports Financiers', icon: BarChart3 },
+      { to: '/profil', label: 'Mon Profil', icon: Settings },
     ],
     admin: [
-      { to: '/', label: 'Dashboard Admin', icon: LayoutDashboard },
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/admin/utilisateurs', label: 'Gestion Utilisateurs', icon: Users },
       { to: '/admin/audit', label: 'Journal d\'Audit', icon: ShieldAlert },
       { to: '/profil', label: 'Mon Profil', icon: Settings },
     ]
   };
 
-  const currentMenu = menus[user?.role] || menus.employee;
+  // Récupérer le menu selon le rôle
+  const currentMenu = menus[user?.role?.toLowerCase()] || menus.employee;
 
   return (
     <div className="w-64 min-h-screen bg-[#111C2E] border-r border-slate-800/60 flex flex-col justify-between p-4 font-sans">

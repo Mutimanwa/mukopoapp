@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Filter, Download, Printer, SlidersHorizontal, UploadCloud, Utensils, Train, Hotel, ShoppingBag, Fuel, Eye, Loader2, AlertTriangle } from 'lucide-react';
+import { Calendar, Filter, Download, Printer, Utensils, Train, Hotel, ShoppingBag, Fuel, Loader2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 const getCategoryIcon = (category) => {
   switch (category?.toLowerCase()) {
@@ -19,15 +20,25 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
 
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
         const { data } = await apiClient.get('/expenses/myexpenses');
-        setExpenses(data);
+        const expensesData = extractData(data);
+        setExpenses(expensesData);
+        
+        if (data.total !== undefined) {
+          setPagination({
+            total: data.total,
+            page: data.page || 1,
+            totalPages: data.totalPages || 1
+          });
+        }
       } catch (err) {
-        console.error(err);
-        setError("Erreur de chargement des dépenses.");
+        console.error('Erreur fetchExpenses:', err);
+        setError(err.response?.data?.message || "Erreur de chargement des dépenses.");
       } finally {
         setLoading(false);
       }
@@ -40,8 +51,6 @@ export default function Expenses() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-
-      {/* Cartes d'Analyse */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group">
           <div className="space-y-1 z-10">
@@ -71,7 +80,7 @@ export default function Expenses() {
           </div>
           <div className="mt-4">
             <div className="text-2xl font-black font-mono">{pendingTotal.toFixed(2)} €</div>
-            <button 
+            <button
               onClick={() => navigate('/nouvelle-note')}
               className="w-full bg-[#0B131F] text-white hover:bg-opacity-90 font-semibold text-xs py-3 px-4 rounded-xl mt-3 transition-all active:scale-[0.98] cursor-pointer"
             >
@@ -81,7 +90,6 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Tableau des dépenses */}
       <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -117,15 +125,13 @@ export default function Expenses() {
               {loading ? (
                 <tr>
                   <td colSpan="5" className="py-8 text-center text-slate-500">
-                    <Loader2 className="inline-block animate-spin mr-2" size={16} />
-                    Chargement...
+                    <Loader2 className="inline-block animate-spin mr-2" size={16} /> Chargement...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
                   <td colSpan="5" className="py-8 text-center text-red-400">
-                    <AlertTriangle className="inline-block mr-2" size={16} />
-                    {error}
+                    <AlertTriangle className="inline-block mr-2" size={16} /> {error}
                   </td>
                 </tr>
               ) : expenses.length === 0 ? (
@@ -144,17 +150,16 @@ export default function Expenses() {
                       </td>
                       <td className="py-4 text-right font-mono font-bold text-sm text-white">{exp.amount.toFixed(2)} {exp.currency}</td>
                       <td className="py-4 text-right">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${
-                          exp.status === 'Approuvée' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${exp.status === 'Approuvée' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                           exp.status === 'En attente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                           exp.status === 'Payé' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                           'bg-red-500/10 text-red-400 border-red-500/20'
-                        }`}>
+                          }`}>
                           {exp.status || 'En attente'}
                         </span>
                       </td>
                       <td className="py-4 text-right">
-                        <button 
+                        <button
                           onClick={() => navigate(`/note-detail/${exp._id}`)}
                           className="text-[#FF6B2C] hover:text-white transition-colors cursor-pointer"
                         >
@@ -168,6 +173,12 @@ export default function Expenses() {
             </tbody>
           </table>
         </div>
+
+        {pagination && (
+          <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-500">
+            <div>Affichage de 1-{pagination.total} sur {pagination.total} transactions</div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit3, CheckCircle2, Circle, Loader2, AlertTriangle, XCircle, Calendar, DollarSign, Briefcase, FileText } from 'lucide-react';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 const STATUS_STEPS = {
   'En attente': { step: 1, label: 'En attente de validation', color: 'text-amber-400' },
@@ -21,7 +22,8 @@ export default function ExpenseDetail() {
     const fetchExpense = async () => {
       try {
         const { data } = await apiClient.get('/expenses/myexpenses');
-        const found = data.find(e => e._id === id);
+        const expenses = extractData(data);
+        const found = expenses.find(e => e._id === id);
         if (found) {
           setExpense(found);
         } else {
@@ -67,7 +69,6 @@ export default function ExpenseDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Fiche technique */}
         <div className="lg:col-span-2 bg-[#111C2E] border border-slate-800/80 rounded-2xl p-8 space-y-6">
           <div className="flex justify-between items-start border-b border-slate-800/60 pb-4">
             <div>
@@ -76,12 +77,11 @@ export default function ExpenseDetail() {
               </span>
               <h2 className="text-xl font-bold text-white mt-1">{expense.category}</h2>
             </div>
-            <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${
-              expense.status === 'Approuvée' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+            <span className={`px-3 py-1 rounded-full text-[10px] font-medium border ${expense.status === 'Approuvée' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
               expense.status === 'Rejeté' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
               expense.status === 'Payé' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
               'bg-amber-500/10 text-amber-400 border-amber-500/20'
-            }`}>
+              }`}>
               • {expense.status || 'En attente'}
             </span>
           </div>
@@ -120,12 +120,10 @@ export default function ExpenseDetail() {
           </div>
         </div>
 
-        {/* Workflow & Suivi */}
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-6 space-y-6">
           <h3 className="text-xs font-mono uppercase text-slate-400 tracking-wider font-bold">Suivi du Workflow</h3>
 
           <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-            {/* Étape 1 – Soumission */}
             <div className="flex gap-4 relative z-10">
               <CheckCircle2 size={24} className="text-green-500 bg-[#111C2E] rounded-full shrink-0" />
               <div>
@@ -134,7 +132,6 @@ export default function ExpenseDetail() {
               </div>
             </div>
 
-            {/* Étape 2 – Validation Manager */}
             <div className={`flex gap-4 relative z-10 ${statusInfo.step < 2 ? 'opacity-50' : ''}`}>
               {isRejected ? (
                 <XCircle size={24} className="text-red-500 bg-[#111C2E] rounded-full shrink-0" />
@@ -154,7 +151,6 @@ export default function ExpenseDetail() {
               </div>
             </div>
 
-            {/* Étape 3 – Paiement */}
             <div className={`flex gap-4 relative z-10 ${statusInfo.step < 3 ? 'opacity-40' : ''}`}>
               {expense.status === 'Payé' ? (
                 <CheckCircle2 size={24} className="text-green-500 bg-[#111C2E] rounded-full shrink-0" />

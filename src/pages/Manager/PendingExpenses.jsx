@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, User, Search, Clock, DollarSign, Calendar, Filter, Loader2, AlertTriangle, Users } from 'lucide-react';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function PendingExpenses() {
   const navigate = useNavigate();
@@ -15,12 +16,23 @@ export default function PendingExpenses() {
     const fetchExpenses = async () => {
       try {
         const { data } = await apiClient.get('/expenses');
+        // Extraire les données correctement
+        const expensesData = extractData(data);
+        
+        // Vérifier que c'est un tableau
+        if (!Array.isArray(expensesData)) {
+          console.error('Les dépenses ne sont pas un tableau:', expensesData);
+          setError("Format de données invalide.");
+          setLoading(false);
+          return;
+        }
+
         // Ne garder que les dépenses "En attente"
-        const pending = data.filter(e => e.status === 'En attente' || !e.status);
+        const pending = expensesData.filter(e => e.status === 'En attente' || !e.status);
         setExpenses(pending);
       } catch (err) {
-        console.error(err);
-        setError("Impossible de charger les demandes.");
+        console.error('Erreur fetchExpenses:', err);
+        setError(err.response?.data?.message || "Impossible de charger les demandes.");
       } finally {
         setLoading(false);
       }
@@ -28,14 +40,15 @@ export default function PendingExpenses() {
     fetchExpenses();
   }, []);
 
-  // Statistiques
-  const totalAmount = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
-  const uniqueEmployees = new Set(expenses.map(e => e.userId?._id)).size;
+  // Statistiques avec vérification que expenses est un tableau
+  const expensesArray = Array.isArray(expenses) ? expenses : [];
+  const totalAmount = expensesArray.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const uniqueEmployees = new Set(expensesArray.map(e => e.userId?._id)).size;
 
-  const filteredExpenses = expenses.filter(row => {
+  const filteredExpenses = expensesArray.filter(row => {
     const employeeName = row.userId ? row.userId.name : 'Inconnu';
     const matchesSearch = employeeName.toLowerCase().includes(search.toLowerCase()) ||
-      row._id.toLowerCase().includes(search.toLowerCase()) ||
+      row._id?.toLowerCase().includes(search.toLowerCase()) ||
       (row.project || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === 'Toutes' || row.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -54,7 +67,7 @@ export default function PendingExpenses() {
         <div className="bg-[#111C2E] border border-slate-800/80 rounded-2xl p-5 flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-slate-500 font-bold tracking-wider">En attente</span>
-            <p className="text-xl font-black text-white font-mono">{loading ? '...' : expenses.length} dossiers</p>
+            <p className="text-xl font-black text-white font-mono">{loading ? '...' : expensesArray.length} dossiers</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/15 text-amber-400 flex items-center justify-center">
             <Clock size={18} />
@@ -97,7 +110,7 @@ export default function PendingExpenses() {
           </div>
 
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {['Toutes', 'Restauration', 'Transport', 'Hébergement', 'Fournitures', 'Carburant'].map((category) => (
+            {['Toutes', 'Restauration', 'Transport', 'Hébergement', 'Fournitures', 'Carburant', 'Autre'].map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -157,20 +170,20 @@ export default function PendingExpenses() {
                       {row.userId ? row.userId.name : 'Inconnu'}
                     </td>
                     <td className="py-4 px-4 font-mono text-[11px] text-slate-400">
-                      {new Date(row.date).toLocaleDateString('fr-FR', { 
+                      {row.date ? new Date(row.date).toLocaleDateString('fr-FR', { 
                         day: '2-digit', 
                         month: 'short', 
                         year: 'numeric' 
-                      })}
+                      }) : 'N/A'}
                     </td>
                     <td className="py-4 px-4">
                       <span className="px-2.5 py-0.5 rounded-lg bg-[#1A263B] text-slate-300 border border-slate-800/80 text-[10px]">
-                        {row.category}
+                        {row.category || 'Non catégorisé'}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-slate-400 font-medium">{row.project || "Général"}</td>
                     <td className="py-4 px-4 text-right font-bold font-mono text-white">
-                      {row.amount.toFixed(2)} {row.currency || '€'}
+                      {(row.amount || 0).toFixed(2)} {row.currency || '€'}
                     </td>
                     <td className="py-4 px-4 text-right">
                       <button
@@ -186,6 +199,12 @@ export default function PendingExpenses() {
             </tbody>
           </table>
         </div>
+
+        {filteredExpenses.length > 0 && (
+          <div className="pt-4 border-t border-slate-800/60 text-xs text-slate-500">
+            Affichage de {filteredExpenses.length} demande{filteredExpenses.length > 1 ? 's' : ''}
+          </div>
+        )}
       </div>
     </div>
   );

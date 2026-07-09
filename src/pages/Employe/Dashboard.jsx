@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, CreditCard, RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, Wallet, CreditCard, RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import apiClient from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { extractData } from '../../utils/dataHelpers';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,10 +16,12 @@ export default function Dashboard() {
       try {
         // Récupérer toutes les dépenses de l'utilisateur
         const { data } = await apiClient.get('/expenses/myexpenses');
-        setExpenses(data);
+        // Extraire les données correctement avec extractData
+        const expensesData = extractData(data);
+        setExpenses(expensesData);
       } catch (err) {
-        console.error(err);
-        setError("Impossible de charger les données.");
+        console.error('Erreur fetchData:', err);
+        setError(err.response?.data?.message || "Impossible de charger les données.");
       } finally {
         setLoading(false);
       }
@@ -26,31 +29,28 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  // Calcul des statistiques
-  const totalSpent = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  const pendingExpenses = expenses.filter(e => e.status === 'En attente');
+  // Calcul des statistiques (avec vérification que expenses est un tableau)
+  const totalSpent = Array.isArray(expenses) ? expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) : 0;
+  const pendingExpenses = Array.isArray(expenses) ? expenses.filter(e => e.status === 'En attente') : [];
   const pendingTotal = pendingExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const approvedTotal = expenses.filter(e => e.status === 'Approuvée').reduce((sum, e) => sum + (e.amount || 0), 0);
+  const approvedTotal = Array.isArray(expenses) ? expenses.filter(e => e.status === 'Approuvée').reduce((sum, e) => sum + (e.amount || 0), 0) : 0;
 
   // Données pour le graphique (groupées par mois)
-  const chartData = expenses.reduce((acc, exp) => {
-    const month = new Date(exp.date).toLocaleString('fr-FR', { month: 'short' });
-    if (!acc[month]) acc[month] = 0;
-    acc[month] += exp.amount || 0;
+  const chartData = Array.isArray(expenses) ? expenses.reduce((acc, exp) => {
+    try {
+      const month = new Date(exp.date).toLocaleString('fr-FR', { month: 'short' });
+      if (!acc[month]) acc[month] = 0;
+      acc[month] += exp.amount || 0;
+    } catch (e) {
+      console.warn('Erreur de date:', e);
+    }
     return acc;
-  }, {});
+  }, {}) : {};
 
   const chartDataArray = Object.entries(chartData).map(([name, value]) => ({
     name,
     Depenses: Math.round(value)
   }));
-
-  const kpis = {
-    balance: totalSpent - approvedTotal,
-    monthlyExpenses: totalSpent,
-    pendingRefunds: pendingTotal,
-    pendingCount: pendingExpenses.length
-  };
 
   if (loading) {
     return (
@@ -172,17 +172,19 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40 text-xs">
-              {expenses.length === 0 ? (
+              {!Array.isArray(expenses) || expenses.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="text-center py-6 text-slate-500">Aucune transaction.</td>
                 </tr>
               ) : (
                 expenses.slice(0, 5).map((exp) => (
                   <tr key={exp._id} className="hover:bg-[#0B131F]/30 transition-colors group">
-                    <td className="py-4 font-medium text-white">{exp.category}</td>
-                    <td className="py-4 text-slate-400">{new Date(exp.date).toLocaleDateString('fr-FR')}</td>
+                    <td className="py-4 font-medium text-white">{exp.category || 'N/A'}</td>
+                    <td className="py-4 text-slate-400">
+                      {exp.date ? new Date(exp.date).toLocaleDateString('fr-FR') : 'N/A'}
+                    </td>
                     <td className="py-4 text-right font-mono font-semibold text-slate-200">
-                      {exp.amount.toFixed(2)} {exp.currency}
+                      {(exp.amount || 0).toFixed(2)} {exp.currency || '€'}
                     </td>
                     <td className="py-4 text-right">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] border ${

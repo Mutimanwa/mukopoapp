@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Loader2, AlertTriangle, RefreshCw, User, Clock, Activity, Filter } from 'lucide-react';
 import apiClient from '../../services/api';
+import { extractData } from '../../utils/dataHelpers';
 
 const TYPE_COLOR = {
   'Approbation': 'text-green-400',
@@ -41,12 +42,22 @@ export default function AuditLogs() {
     setError(null);
     try {
       // Récupérer toutes les dépenses
-      const { data } = await apiClient.get('/expenses');
-
-      // Construire le journal d'audit
-      const auditEntries = [];
+      const response = await apiClient.get('/expenses');
+      // Extraire les données correctement avec extractData
+      const expenses = extractData(response.data);
       
-      data.forEach(exp => {
+      // Vérifier que expenses est bien un tableau
+      if (!Array.isArray(expenses)) {
+        console.error('Les dépenses ne sont pas un tableau:', expenses);
+        setError('Format de données invalide.');
+        setLoading(false);
+        return;
+      }
+
+      const auditEntries = [];
+
+      // Parcourir les dépenses
+      expenses.forEach(exp => {
         // Entrée initiale (soumission)
         auditEntries.push({
           timestamp: new Date(exp.createdAt || exp.date).toLocaleString('fr-FR', {
@@ -57,15 +68,16 @@ export default function AuditLogs() {
             minute: '2-digit'
           }),
           actor: exp.userId?.name || 'Inconnu',
-          action: `Soumission - ${exp.category} - ${exp.amount.toFixed(2)} ${exp.currency || '€'}`,
+          action: `Soumission - ${exp.category} - ${(exp.amount || 0).toFixed(2)} ${exp.currency || '€'}`,
           type: 'Soumission',
           id: exp._id + '_submit',
           userId: exp.userId?._id,
-          category: exp.category
+          category: exp.category,
+          status: exp.status
         });
 
         // Entrées d'historique
-        if (exp.history && exp.history.length > 0) {
+        if (exp.history && Array.isArray(exp.history) && exp.history.length > 0) {
           exp.history.forEach((h, idx) => {
             const type = getLogType(h.status);
             auditEntries.push({
@@ -81,50 +93,64 @@ export default function AuditLogs() {
               type: type,
               id: exp._id + '_h' + idx,
               userId: h.updatedBy?._id,
-              category: exp.category
+              category: exp.category,
+              status: h.status
             });
           });
         }
       });
 
-      // Ajouter les logs utilisateurs (création/modification/suppression)
+      // Ajouter les logs utilisateurs (création)
       try {
         const usersRes = await apiClient.get('/users');
-        usersRes.data.forEach(user => {
-          auditEntries.push({
-            timestamp: new Date(user.createdAt).toLocaleString('fr-FR', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
-            actor: 'Système',
-            action: `Création utilisateur - ${user.name} (${user.email}) [${user.role}]`,
-            type: 'Utilisateur',
-            id: user._id + '_create',
-            userId: user._id
+        const users = extractData(usersRes.data);
+        
+        if (Array.isArray(users)) {
+          users.forEach(user => {
+            auditEntries.push({
+              timestamp: new Date(user.createdAt).toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              actor: 'Système',
+              action: `Création utilisateur - ${user.name} (${user.email}) [${user.role}]`,
+              type: 'Utilisateur',
+              id: user._id + '_create',
+              userId: user._id,
+              category: 'Utilisateur',
+              status: 'Créé'
+            });
           });
-        });
+        }
       } catch (e) {
-        // Ignorer les erreurs de récupération des utilisateurs
+        console.warn('Impossible de récupérer les utilisateurs:', e);
       }
 
       // Trier par date décroissante
-      auditEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      auditEntries.sort((a, b) => {
+        const dateA = new Date(a.timestamp);
+        const dateB = new Date(b.timestamp);
+        return dateB - dateA;
+      });
+
       setLogs(auditEntries);
     } catch (err) {
-      console.error(err);
-      setError("Erreur lors du chargement du journal d'audit.");
+      console.error('Erreur fetchLogs:', err);
+      setError(err.response?.data?.message || "Erreur lors du chargement du journal d'audit.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
-  const filteredLogs = filter === 'Tous' 
-    ? logs 
+  const filteredLogs = filter === 'Tous'
+    ? logs
     : logs.filter(log => log.type === filter);
 
   const logTypes = ['Tous', ...new Set(logs.map(log => log.type))];
@@ -138,9 +164,10 @@ export default function AuditLogs() {
         </div>
         <button
           onClick={fetchLogs}
-          className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white bg-[#1A263B] border border-slate-800 px-3 py-2 rounded-xl transition-colors cursor-pointer"
+          disabled={loading}
+          className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white bg-[#1A263B] border border-slate-800 px-3 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> 
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           {loading ? 'Chargement...' : 'Actualiser'}
         </button>
       </div>
@@ -178,11 +205,10 @@ export default function AuditLogs() {
             <button
               key={type}
               onClick={() => setFilter(type)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                filter === type
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${filter === type
                   ? 'bg-[#FF6B2C] text-white border-transparent'
                   : 'bg-[#1A263B] text-slate-400 border-slate-800 hover:text-slate-200'
-              }`}
+                }`}
             >
               {type === 'Tous' ? '📋 Tous' : `${TYPE_ICON[type] || '📋'} ${type}`}
             </button>
@@ -229,8 +255,17 @@ export default function AuditLogs() {
                       <span className="text-slate-200 text-xs">{log.action}</span>
                     </div>
                     {log.category && (
-                      <div className="text-[9px] text-slate-600 font-mono">
-                        Catégorie: {log.category}
+                      <div className="text-[9px] text-slate-600 font-mono flex items-center gap-2">
+                        <span>Catégorie: {log.category}</span>
+                        {log.status && (
+                          <span className={`px-1.5 py-0.5 rounded ${log.status === 'Approuvée' ? 'bg-green-500/10 text-green-400' :
+                              log.status === 'Rejeté' ? 'bg-red-500/10 text-red-400' :
+                              log.status === 'Payé' ? 'bg-blue-500/10 text-blue-400' :
+                              'bg-amber-500/10 text-amber-400'
+                            }`}>
+                            {log.status}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

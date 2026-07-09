@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Calendar, DownloadCloud, TrendingUp, AlertTriangle, FileText, Loader2, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
+import { extractData } from '../utils/dataHelpers';
 
 const CATEGORY_COLORS = {
   'Restauration': '#FF6B2C',
@@ -23,12 +24,22 @@ export default function Reports() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Récupérer toutes les dépenses
         const { data } = await apiClient.get('/expenses');
-        setExpenses(data);
+        // Extraire les données correctement
+        const expensesData = extractData(data);
+        
+        // Vérifier que c'est un tableau
+        if (!Array.isArray(expensesData)) {
+          console.error('Les dépenses ne sont pas un tableau:', expensesData);
+          setError("Format de données invalide.");
+          setLoading(false);
+          return;
+        }
+
+        setExpenses(expensesData);
       } catch (err) {
-        console.error(err);
-        setError("Impossible de charger les données.");
+        console.error('Erreur fetchData:', err);
+        setError(err.response?.data?.message || "Impossible de charger les données.");
       } finally {
         setLoading(false);
       }
@@ -36,21 +47,27 @@ export default function Reports() {
     fetchData();
   }, []);
 
-  // Filtrer par période
+  // Filtrer par période - avec vérification que expenses est un tableau
   const getFilteredExpenses = () => {
+    const expensesArray = Array.isArray(expenses) ? expenses : [];
     const now = new Date();
-    const filtered = expenses.filter(e => {
-      const date = new Date(e.date);
-      if (period === 'month') {
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    
+    return expensesArray.filter(e => {
+      try {
+        const date = new Date(e.date);
+        if (period === 'month') {
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }
+        if (period === 'quarter') {
+          const quarter = Math.floor(now.getMonth() / 3);
+          return Math.floor(date.getMonth() / 3) === quarter && date.getFullYear() === now.getFullYear();
+        }
+        return true;
+      } catch (err) {
+        console.warn('Erreur de date:', err);
+        return false;
       }
-      if (period === 'quarter') {
-        const quarter = Math.floor(now.getMonth() / 3);
-        return Math.floor(date.getMonth() / 3) === quarter && date.getFullYear() === now.getFullYear();
-      }
-      return true;
     });
-    return filtered;
   };
 
   const filteredExpenses = getFilteredExpenses();
@@ -70,9 +87,13 @@ export default function Reports() {
 
   // Données pour le graphique par mois
   const monthlyData = filteredExpenses.reduce((acc, exp) => {
-    const month = new Date(exp.date).toLocaleString('fr-FR', { month: 'short' });
-    if (!acc[month]) acc[month] = 0;
-    acc[month] += exp.amount || 0;
+    try {
+      const month = new Date(exp.date).toLocaleString('fr-FR', { month: 'short' });
+      if (!acc[month]) acc[month] = 0;
+      acc[month] += exp.amount || 0;
+    } catch (err) {
+      console.warn('Erreur de date:', err);
+    }
     return acc;
   }, {});
 
@@ -91,6 +112,14 @@ export default function Reports() {
       <Loader2 className="animate-spin" size={20} /> Chargement des rapports...
     </div>
   );
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-red-400 gap-2">
+        <AlertTriangle size={20} /> {error}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -234,13 +263,16 @@ export default function Reports() {
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-1 mt-4">
-                {pieData.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 text-[10px]">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[item.name] || '#64748B' }} />
-                    <span className="text-slate-400 truncate">{item.name}</span>
-                    <span className="font-mono font-bold text-white ml-auto">{Math.round((item.value / totalAmount) * 100)}%</span>
-                  </div>
-                ))}
+                {pieData.map((item, idx) => {
+                  const percentage = totalAmount > 0 ? Math.round((item.value / totalAmount) * 100) : 0;
+                  return (
+                    <div key={idx} className="flex items-center gap-1.5 text-[10px]">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[item.name] || '#64748B' }} />
+                      <span className="text-slate-400 truncate">{item.name}</span>
+                      <span className="font-mono font-bold text-white ml-auto">{percentage}%</span>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

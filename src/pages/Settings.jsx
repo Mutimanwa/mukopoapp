@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Lock, Bell, Shield, Save, CheckCircle, Loader2, AlertTriangle, Mail, Briefcase } from 'lucide-react';
+import { User, Lock, Bell, Shield, Save, CheckCircle, Loader2, AlertTriangle, Mail, Briefcase, LogOut } from 'lucide-react';
 import Input from '../components/UI/Input';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../services/api';
+import { extractData } from '../utils/dataHelpers';
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -37,12 +38,29 @@ export default function Settings() {
 
   useEffect(() => {
     if (user) {
-      setProfile({
-        name: user.name || '',
-        email: user.email || '',
-        team: user.team || 'Non assigné',
-        role: user.role || 'Employe'
-      });
+      // Récupérer les données complètes de l'utilisateur depuis l'API
+      const fetchUserData = async () => {
+        try {
+          const { data } = await apiClient.get(`/users/${user._id}`);
+          const userData = extractData(data);
+          setProfile({
+            name: userData.name || user.name || '',
+            email: userData.email || user.email || '',
+            team: userData.team || 'Non assigné',
+            role: userData.role || user.role || 'Employe'
+          });
+        } catch (err) {
+          console.error('Erreur chargement profil:', err);
+          // Fallback sur les données du contexte
+          setProfile({
+            name: user.name || '',
+            email: user.email || '',
+            team: user.team || 'Non assigné',
+            role: user.role || 'Employe'
+          });
+        }
+      };
+      fetchUserData();
     }
   }, [user]);
 
@@ -52,21 +70,36 @@ export default function Settings() {
     setError(null);
 
     try {
-      await apiClient.put(`/users/${user._id}`, {
+      const response = await apiClient.put(`/users/${user._id}`, {
         name: profile.name,
         email: profile.email,
         team: profile.team
       });
+
+      const updatedUserData = extractData(response.data);
       
       // Mettre à jour le contexte
-      const updatedUser = { ...user, name: profile.name, email: profile.email, team: profile.team };
+      const updatedUser = { 
+        ...user, 
+        name: updatedUserData.name || profile.name,
+        email: updatedUserData.email || profile.email,
+        team: updatedUserData.team || profile.team
+      };
       localStorage.setItem('userInfo', JSON.stringify(updatedUser));
       
+      // Mettre à jour le state
+      setProfile({
+        ...profile,
+        name: updatedUserData.name || profile.name,
+        email: updatedUserData.email || profile.email,
+        team: updatedUserData.team || profile.team
+      });
+
       setToastMessage('Profil mis à jour avec succès !');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      console.error(err);
+      console.error('Erreur mise à jour profil:', err);
       setError(err.response?.data?.message || "Erreur lors de la mise à jour.");
     } finally {
       setLoading(false);
@@ -77,6 +110,13 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validation
+    if (!passwordData.currentPassword) {
+      setError('Veuillez entrer votre mot de passe actuel.');
+      setLoading(false);
+      return;
+    }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('Les mots de passe ne correspondent pas.');
@@ -91,17 +131,19 @@ export default function Settings() {
     }
 
     try {
-      // Note: Le backend n'a pas encore de route pour changer le mot de passe
-      // Simulation pour le moment
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Appel API pour changer le mot de passe
+      await apiClient.put(`/users/${user._id}/password`, {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
       
       setToastMessage('Mot de passe mis à jour avec succès !');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      console.error(err);
-      setError("Erreur lors du changement de mot de passe.");
+      console.error('Erreur changement mot de passe:', err);
+      setError(err.response?.data?.message || "Erreur lors du changement de mot de passe.");
     } finally {
       setLoading(false);
     }
@@ -113,15 +155,15 @@ export default function Settings() {
     setError(null);
 
     try {
-      // Sauvegarder les préférences (simulé)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Sauvegarder les préférences
+      await apiClient.put(`/users/${user._id}/notifications`, notifications);
       
       setToastMessage('Préférences enregistrées !');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      console.error(err);
-      setError("Erreur lors de l'enregistrement.");
+      console.error('Erreur sauvegarde préférences:', err);
+      setError(err.response?.data?.message || "Erreur lors de l'enregistrement.");
     } finally {
       setLoading(false);
     }
@@ -237,7 +279,11 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer"
+                >
                   {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {loading ? "Sauvegarde..." : "Enregistrer"}
                 </button>
@@ -299,7 +345,11 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer"
+                >
                   {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {loading ? "Mise à jour..." : "Mettre à jour"}
                 </button>
@@ -335,7 +385,7 @@ export default function Settings() {
                     <label className="relative inline-flex items-center cursor-pointer mt-1">
                       <input
                         type="checkbox"
-                        checked={notifications[item.id]}
+                        checked={notifications[item.id] || false}
                         onChange={(e) => setNotifications({ ...notifications, [item.id]: e.target.checked })}
                         className="sr-only peer"
                       />
@@ -346,7 +396,11 @@ export default function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-800/60 flex justify-end">
-                <button type="submit" disabled={loading} className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="bg-[#FF6B2C] hover:bg-opacity-90 disabled:opacity-50 text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#FF6B2C]/10 transition-all active:scale-[0.98] cursor-pointer"
+                >
                   {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {loading ? "Enregistrement..." : "Enregistrer"}
                 </button>

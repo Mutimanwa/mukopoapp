@@ -1,59 +1,59 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-// Layout global
 import Layout from './components/Layout/Layout';
-
-// Protection de routes
 import ProtectedRoute from './components/ProtectedRoute';
-
-// Pages Auth
 import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
 
-// Pages Rôles (On crée des points d'entrées intelligents)
+// Pages Employé
 import Dashboard from './pages/Employe/Dashboard';
-import Expenses from './pages/Employe/Expenses';   // Mes Dépenses / Notes
+import Expenses from './pages/Employe/Expenses';
 import NewExpense from './pages/Employe/NewExpense';
 import ExpenseDetail from './pages/Employe/ExpenseDetail';
 import EditExpense from './pages/Employe/EditExpense';
 import ReceiptsGallery from './pages/Employe/ReceiptsGallery';
 import RefundDetail from './pages/Employe/RefundDetail';
-import ApprovalDetail from './pages/Manager/ApprovalDetail';
+
+// Pages Manager
+import ManagerDashboard from './pages/Manager/ManagerDashboard';
 import PendingExpenses from './pages/Manager/PendingExpenses';
+import ApprovalDetail from './pages/Manager/ApprovalDetail';
 import ValidationHistory from './pages/Manager/ValidationHistory';
 import TeamList from './pages/Manager/TeamList';
 import TeamMemberDetail from './pages/Manager/TeamMemberDetail';
-import ManagerDashboard from './pages/Manager/ManagerDashboard'; 
-import ExpenseReports from './pages/Finance/ExpenseReports';
-import AuditingExpenses from './pages/Finance/AuditingExpenses';
-import PayoutHistory from './pages/Finance/PayoutHistory';
-import PayoutDetail from './pages/Finance/PayoutDetail';
-import PendingPayouts from './pages/Finance/PendingPayouts';
+
+// Pages Finance
 import FinanceDashboard from './pages/Finance/FinanceDashboard';
+import PendingPayouts from './pages/Finance/PendingPayouts';
+import PayoutDetail from './pages/Finance/PayoutDetail';
+import PayoutHistory from './pages/Finance/PayoutHistory';
+import AuditingExpenses from './pages/Finance/AuditingExpenses';
+import ExpenseReports from './pages/Finance/ExpenseReports';
+
+// Pages Admin
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserManagement from './pages/Admin/UserManagement';
 import UserForm from './pages/Admin/UserForm';
 import AuditLogs from './pages/Admin/AuditLogs';
 
-// Imports des pages complémentaires
+// Pages communes
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
 
-// Nous allons créer un composant de routage pour le tableau de bord selon le rôle
-function SwitchDashboard() {
+// Composant pour le dashboard selon le rôle
+function DashboardRouter() {
   const { user } = useAuth();
+  const role = user?.role?.toLowerCase();
 
-  switch (user?.role) {
+  switch (role) {
     case 'manager':
       return <ManagerDashboard />;
     case 'finance':
-      return <FinanceDashboard />; // On réutilise le module analytique poussé pour la finance
+      return <FinanceDashboard />;
     case 'admin':
-      return <AdminDashboard />; // L'administrateur arrive directement sur les configurations
-    case 'employee':
+      return <AdminDashboard />;
     default:
-      return <Dashboard />; // L'employé par défaut
+      return <Dashboard />;
   }
 }
 
@@ -62,20 +62,20 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Routes d'accès authentification autonomes */}
+          {/* Route de connexion (publique) */}
           <Route path="/connexion" element={<Login />} />
-          <Route path="/inscription" element={<Register />} />
 
-          {/* Application protégée par l'authentification globale */}
+          {/* Routes protégées avec Layout */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Layout />}>
-              {/* Le point d'entrée s'adapte dynamiquement selon le rôle simulé */}
-              <Route index element={<SwitchDashboard />} />
-
-              {/* Page commune de profil */}
+            <Route element={<Layout />}>
+              {/* Dashboard - redirige vers le bon dashboard selon le rôle */}
+              <Route index element={<DashboardRouter />} />
+              
+              {/* Routes communes */}
               <Route path="profil" element={<Settings />} />
+              <Route path="equipe/rapports" element={<Reports />} />
 
-              {/* Routes Employé */}
+              {/* Routes Employé - accessibles uniquement aux employés */}
               <Route element={<ProtectedRoute allowedRoles={['employee']} />}>
                 <Route path="mes-notes" element={<Expenses />} />
                 <Route path="nouvelle-note" element={<NewExpense />} />
@@ -85,17 +85,16 @@ export default function App() {
                 <Route path="mes-remboursements" element={<RefundDetail />} />
               </Route>
 
-              {/* Routes Manager / Validation */}
+              {/* Routes Manager - accessibles uniquement aux managers */}
               <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
                 <Route path="validation/attente" element={<PendingExpenses />} />
                 <Route path="validation/detail/:id" element={<ApprovalDetail />} />
                 <Route path="validation/historique" element={<ValidationHistory />} />
                 <Route path="equipe/collaborateurs" element={<TeamList />} />
                 <Route path="equipe/collaborateur/:id" element={<TeamMemberDetail />} />
-                <Route path="equipe/rapports" element={<Reports />} />
               </Route>
 
-              {/* Routes Comptables / Financières */}
+              {/* Routes Finance - accessibles uniquement à la finance */}
               <Route element={<ProtectedRoute allowedRoles={['finance']} />}>
                 <Route path="finance/traiter" element={<PendingPayouts />} />
                 <Route path="finance/payer/:id" element={<PayoutDetail />} />
@@ -104,13 +103,16 @@ export default function App() {
                 <Route path="finance/rapports" element={<ExpenseReports />} />
               </Route>
 
-              {/* Routes d'Administration */}
+              {/* Routes Admin - accessibles uniquement aux admins */}
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="admin/utilisateurs" element={<UserManagement />} />
                 <Route path="admin/utilisateurs/creer" element={<UserForm />} />
                 <Route path="admin/utilisateurs/modifier/:id" element={<UserForm />} />
                 <Route path="admin/audit" element={<AuditLogs />} />
               </Route>
+
+              {/* Redirection 404 */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route>
         </Routes>

@@ -27,9 +27,13 @@ export default function AdminDashboard() {
         const usersRes = await apiClient.get('/users');
         setUsers(usersRes.data);
 
-        // Récupérer les dépenses
+       // Récupérer les dépenses
         const expensesRes = await apiClient.get('/expenses');
-        const expenses = expensesRes.data;
+        // S'assurer que expenses est un tableau
+        const expensesData = Array.isArray(expensesRes.data) ? expensesRes.data : [];
+        
+        // Si les données sont paginées, chercher dans la propriété appropriée
+        const expenses = expensesData.expenses || expensesData;
 
         // Calculer les statistiques
         const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
